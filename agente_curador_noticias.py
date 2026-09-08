@@ -66,10 +66,5 @@ agente_noticias = Agent(
 
 if __name__ == "__main__":
     agente_noticias.print_response(
-        """
-        Pesquise as propostas econômicas de Renan Santos.
-        Busque fontes confiáveis.
-        Compare as informações.
-        Produza um relatório jornalístico.
-        """
+        "Planos economico do canditado Renan Santos do Missão"
     )
