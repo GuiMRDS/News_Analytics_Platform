@@ -239,6 +239,23 @@ wheels = [
 ]
 
 [[package]]
+name = "groq"
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0c/c1/20cb719bc21aa22df185c4aa60abc17680d7067d41fe0ca3fda98b75822b/groq-1.7.0.tar.gz", hash = "sha256:d582dbb3f071b92ca339baba83af9f57ba6f46a51c34b04565d7cb9badb2785b", size = 158918, upload-time = "2026-08-26T02:36:19.734Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/f6/c3d8ea3194d7d7d8292edd4dbb4b6832d29c2eab04887dda4a742e83902c/groq-1.7.0-py3-none-any.whl", hash = "sha256:cb1518f823423d4e52445859eb7d2918a927794cec12f8d5e50d9161e3690fc8", size = 143797, upload-time = "2026-08-26T02:36:18.497Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -409,6 +426,7 @@ dependencies = [
     { name = "ddgs" },
     { name = "duckduckgo-search" },
     { name = "fastapi" },
+    { name = "groq" },
     { name = "openai" },
 ]
 
@@ -418,6 +436,7 @@ requires-dist = [
     { name = "ddgs", specifier = "==9.10.0" },
     { name = "duckduckgo-search", specifier = "==8.1.1" },
     { name = "fastapi", specifier = "==0.129.0" },
+    { name = "groq", specifier = ">=1.7.0" },
     { name = "openai", specifier = "==2.17.0" },
 ]
 

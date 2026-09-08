@@ -1,14 +1,15 @@
-import pathlib as Path
+import os
 
+from pathlib import Path
 from agno.agent import Agent
 from agno.models.groq import Groq
 from agno.tools.websearch import WebSearchTools
+from agno.tools.file import FileTools
 from dotenv import load_dotenv
 
+
 load_dotenv()
-
-from agno.tools.file import FileTools
-
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 output_dir = Path(__file__).parent / "output/V0"
 
