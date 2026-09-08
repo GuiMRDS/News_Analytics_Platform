@@ -1,0 +1,19 @@
+# Arquivos de ambiente
+.env
+
+# Arquivos de cache
+__pycache__/
+*.py[cod]
+
+# Arquivos de dependências
+.venv/
+venv/
+
+# Arquivos de logs
+*.log
+
+# Arquivos de saída
+output/
+
+# Arquivos de sistema
+.DS_Store
