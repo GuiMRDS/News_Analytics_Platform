@@ -1,6 +1,8 @@
 import os
-
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from agno.agent import Agent
 from agno.models.groq import Groq
@@ -8,12 +10,12 @@ from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.file import FileTools
 from agno.workflow import Workflow
-from dotenv import load_dotenv
 
-load_dotenv()
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-output_dir = Path(__file__).parent / "output/V0"
+output_dir = Path(__file__).parent / "output/V2"
+output_dir.mkdir(parents=True, exist_ok=True)
 file_tools = FileTools(
     base_dir=output_dir,
     enable_save_file=True,
