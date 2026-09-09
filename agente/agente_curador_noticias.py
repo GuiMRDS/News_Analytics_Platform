@@ -3,15 +3,17 @@ import os
 from pathlib import Path
 from agno.agent import Agent
 from agno.models.groq import Groq
+from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.file import FileTools
 from dotenv import load_dotenv
 
-
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+skills_dir = Path(__file__).parent / "skills"
 output_dir = Path(__file__).parent / "output/V0"
+
 
 file_tools = FileTools(
     base_dir=output_dir,
@@ -42,17 +44,17 @@ Regras:
 agente_noticias = Agent(
     name="agente de Noticias",
     model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    skills=Skills(loaders=[LocalSkills(str(skills_dir))]),
     instructions=[
         "Você é um jornalista completo: pesquisador, apurador, verificador factual e redator.",
         "Receba um tema e execute TODAS as etapas abaixo em sequência.",
         "",
-        "Siga rigorosamente as instruções de cada etapa definida nas skills abaixo:",
-        instrucoes_prompt,
+        "Antes de começar, carregue as instruções de cada skill usando get_skill_instructions.",
         "",
-        "ETAPA 1 — PESQUISA: execute as instruções de 'PESQUISA DE NOTÍCIAS'",
-        "ETAPA 2 — APURAÇÃO: execute as instruções de 'APURAÇÃO DE FONTES JORNALÍSTICAS'",
-        "ETAPA 3 — VERIFICAÇÃO: execute as instruções de 'VERIFICAÇÃO FACTUAL'",
-        "ETAPA 4 — REDAÇÃO: execute as instruções de 'REDAÇÃO DE MATÉRIA JORNALÍSTICA'",
+        "ETAPA 1 — PESQUISA: use a skill 'pesquisa-noticias'",
+        "ETAPA 2 — APURAÇÃO: use a skill 'apuracao-fontes'",
+        "ETAPA 3 — VERIFICAÇÃO: use a skill 'verificacao-factual'",
+        "ETAPA 4 — REDAÇÃO: use a skill 'redacao-jornalistica'",
         "",
         "Apresente ao usuário APENAS a matéria jornalística final (Etapa 4).",
         "As etapas 1, 2 e 3 são seu processo interno de trabalho.",
@@ -66,5 +68,6 @@ agente_noticias = Agent(
 
 if __name__ == "__main__":
     agente_noticias.print_response(
-        "Planos economico do canditado Renan Santos do Missão"
+        "Quem é Elon Musk?",
+        stream=True
     )
