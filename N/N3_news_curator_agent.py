@@ -1,5 +1,5 @@
 # =============================================================================
-# N3 — Agente Curador de Notícias (Nível 3: Workflow com Team e Loops)
+# N3 — agente Curador de Notícias (Nível 3: Workflow com Team e Loops)
 # =============================================================================
 #
 # Este script cria um WORKFLOW COMPLETO de IA que atua como uma redação jornalística.
@@ -169,7 +169,7 @@ def contar_fontes(texto: str) -> int:
     """
     Função Auxiliar: Extração e contagem analítica
     
-    Analisa o texto retornado pelo Agente Apurador para contar o número
+    Analisa o texto retornado pelo agente Apurador para contar o número
     de fontes distintas que ele conseguiu encontrar. Para garantir que
     não estejamos contando fontes repetidas apenas pelo título da seção,
     usamos expressões regulares (Regex) para varrer o texto.
@@ -263,7 +263,7 @@ pesquisa_step = Step(
     team=time_research,
 )
 
-# Step 2 (Base): Apuração usando o Agente Apurador
+# Step 2 (Base): Apuração usando o agente Apurador
 apuracao_step = Step(
     name="apuracao",
     description="Apuração multi-fonte com verificação de fontes",
@@ -280,14 +280,14 @@ apuracao_loop = Loop(
     end_condition=fontes_suficientes,
 )
 
-# Step 3: Verificação Factual usando o Agente Verificador
+# Step 3: Verificação Factual usando o agente Verificador
 verificacao_step = Step(
     name="verificacao",
     description="Verificação factual do dossiê",
     agent=verificador,
 )
 
-# Step 4: Redação usando o Agente Redator
+# Step 4: Redação usando o agente Redator
 redacao_step = Step(
     name="redacao",
     description="Redação jornalística final",

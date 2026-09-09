@@ -40,7 +40,7 @@ Regras:
 
 
 agente_noticias = Agent(
-    name="Agente de Noticias",
+    name="agente de Noticias",
     model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
     instructions=[
         "Você é um jornalista completo: pesquisador, apurador, verificador factual e redator.",

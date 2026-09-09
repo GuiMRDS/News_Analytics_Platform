@@ -1,5 +1,5 @@
 # =============================================================================
-# N0 — Agente Curador de Notícias (Nível 0: agente único)
+# N0 — agente Curador de Notícias (Nível 0: agente único)
 # =============================================================================
 #
 # Este script cria um ÚNICO AGENTE de IA que atua como jornalista completo.
@@ -321,7 +321,7 @@ No final da matéria, inclua uma seção `## Referências` com a lista numerada 
 #    apresentando ao usuário somente o resultado final (a matéria).
 # ─────────────────────────────────────────────────────────────────────────────
 agente_noticias = Agent(
-    name="Agente de Notícias",
+    name="agente de Notícias",
 
     # Model: qual LLM o agente usa para "pensar" e gerar texto
     model=OpenAIResponses(id="gpt-5-nano", api_key=os.getenv("OPENAI_API_KEY")),

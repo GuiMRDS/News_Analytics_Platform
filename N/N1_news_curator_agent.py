@@ -1,5 +1,5 @@
 # =============================================================================
-# N1 — Agente Curador de Notícias (Nível 1: agente único com Skills externas)
+# N1 — agente Curador de Notícias (Nível 1: agente único com Skills externas)
 # =============================================================================
 #
 # Este script cria um ÚNICO AGENTE de IA que atua como jornalista completo.
@@ -66,7 +66,7 @@ file_tools = FileTools(
 #    enquanto os prompts complexos ficam em arquivos de texto separados.
 # ─────────────────────────────────────────────────────────────────────────────
 agente_noticias = Agent(
-    name="Agente de Notícias",
+    name="agente de Notícias",
 
     # Model: o cérebro do agente
     model=OpenAIResponses(id="gpt-5-nano", api_key=os.getenv("OPENAI_API_KEY")),
