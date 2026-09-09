@@ -68,6 +68,6 @@ agente_noticias = Agent(
 
 if __name__ == "__main__":
     agente_noticias.print_response(
-        "Quem é Elon Musk?",
+        "Quem é Gustavo Guanabara?",
         stream=True
     )
