@@ -1,60 +1,365 @@
-# News Curator (Curador de Notícias)
+# 📰 Curadoria de Notícias com IA
 
-**Nível:** 1 (Básico / Introdutório)  
-**Projeto:** Asimov Academy
+Sistema de curadoria jornalística baseado em agentes de IA utilizando **Agno**, **Groq**, **Workflows**, **Skills Customizadas** e **Arquitetura Multiagente**.
 
-## Sobre o Projeto
+O projeto simula o fluxo de trabalho de uma redação moderna, permitindo que agentes especializados pesquisem, apurem, validem e redijam matérias jornalísticas automaticamente.
 
-Este projeto consiste na construção de um sistema de Agentes de Inteligência Artificial capaz de fazer a **curadoria completa de notícias**. Você informa um tema e o sistema pesquisa o cenário atual, cruza fontes diferentes, identifica informações convergentes e contraditórias, verifica os fatos e por fim, entrega uma matéria jornalística final estruturada, com devidas referências e rastreabilidade total.
+---
 
-O projeto foi criado primeiramente como uma ferramenta interna para monitoramento de notícias relevantes sobre IA e, agora, é utilizado para ensinar os fundamentos arquiteturais de Agentes de IA na prática.
+## 🚀 Objetivo
 
-## Objetivos de Aprendizado
+Construir uma plataforma de curadoria de notícias utilizando Inteligência Artificial para:
 
-Ao final do desenvolvimento e acompanhamento deste projeto, você terá desenvolvido um repertório valioso sobre construção operacional de IAs autônomas, e compreenderá conceitos chave do framework **Agno**:
+- Pesquisar informações em múltiplas fontes
+- Realizar apuração jornalística
+- Executar verificação factual
+- Gerar matérias estruturadas
+- Evoluir diferentes arquiteturas de agentes (V1, V2, V3, V4...)
+- Comparar estratégias de orquestração com Agno
 
-- **Agent Skills**: Como fornecer ferramentas (como buscar arquivos ou pesquisar na web) que capacitam a ação do seu Agente.
-- **Architectures Multi-Agents**: A evolução de um agente individual (modo _standalone_) para equipes de Agentes (_Teams_) e **Workflows**.
-- **Apuração Automatizada**: Estratégias e Prompts para fazer cruzamento de fontes reais.
+---
 
-_Nota: Por se tratar de um projeto de Nível 1, o foco é na arquitetura base e na exploração da engine dos Agentes. Recursos complementares de Deploy, RAG e Layout ficarão para os níveis subsequentes (N2/N3)._
+# 🏗️ Arquitetura
 
-## Estrutura do Código
+O projeto evolui através de versões, cada uma explorando diferentes abordagens de engenharia de agentes.
 
-A aprendizagem e o código são estruturados de forma incremental, representados puramente pelos scripts `N0` até `N3`:
+## V1 — Agente Monolítico
 
-- `N0_news_curator_agent.py` - Nossa fundação, explorando a criação do curador utilizando apenas um Agente Único (Agente Monolítico).
-- `N1`, `N2`, `N3_news_curator_agent.py` - Diferentes iterações do mesmo projeto que vão evoluindo a arquitetura para Multi-Agentes, implementando a etapa de pesquisa, fact-checking e redação como agentes segregados em equipe.
-- `/skills` - Implementação isolada de ferramentas consumidas no projeto.
+Um único agente responsável por executar todas as etapas da curadoria.
 
-## Stack Tecnológica (Dependências)
+```text
+Tema
+ ↓
+Agente Jornalista
+ ↓
+Matéria Final
+```
 
-O projeto depende das seguintes bibliotecas principais presentes no `pyproject.toml`:
+---
 
-- **[Python](https://python.org/)** (v3.12.11)
-- **[Agno](https://github.com/agno-agi/agno)** (v2.4.8) - Framework base de agentes.
-- **OpenAI** - Engine de inferência (LLM).
-- **DuckDuckGo Search (`ddgs`)** - Ferramenta de pesquisa automatizada em tempo real para os agentes coletarem as notícias.
-- **FastAPI**
+## V2 — Workflow Sequencial
 
-## Como Preparar o Ambiente
+Separação das responsabilidades em agentes especializados.
 
-1. Garanta que você tenha o Python 3.12+ ou gerenciador similar (como o `uv`).
-2. Instale as dependências listadas no `pyproject.toml`.
-3. Configure as varíaveis de ambiente através da criação de um `.env` listando pelo menos:
-   ```env
-   OPENAI_API_KEY="sk-SuaChaveAqui"
-   ```
-4. Execute os módulos de N0 a N3 para explorar o Agente em ação!
-   - Ative o ambiente virtual:
-   ```bash
-   source .venv/bin/activate
-   ```
-   - Instale as dependências:
-   ```bash
-   uv sync
-   ```
-   - Execute os módulos:
-   ```bash
-   uv run N0_news_curator_agent.py
-   ```
+```text
+Tema
+ ↓
+Pesquisador
+ ↓
+Apurador
+ ↓
+Verificador
+ ↓
+Redator
+ ↓
+Matéria Final
+```
+
+---
+
+## V3 — Workflow com Controle de Qualidade
+
+Introdução de validações e melhorias no processo de apuração.
+
+```text
+Tema
+ ↓
+Pesquisa
+ ↓
+Apuração
+ ↓
+Validação
+ ↓
+Redação
+ ↓
+Matéria Final
+```
+
+---
+
+## V4 — Multi-Agent Research Pipeline
+
+Versão atual.
+
+Implementa:
+
+- Equipe de pesquisa
+- Loop de apuração
+- Validação de quantidade mínima de fontes
+- Verificação factual
+- Redação automatizada
+- Exportação Markdown
+
+```text
+Tema
+ ↓
+Research Team
+ ↓
+Apuração
+ ↓
+Validação de Fontes
+ ↓
+Fact Checking
+ ↓
+Redação
+ ↓
+Markdown
+```
+
+---
+
+# 🤖 Agentes Especializados
+
+## 🔍 Pesquisador
+
+Responsável por:
+
+- Buscar informações relevantes
+- Identificar notícias recentes
+- Coletar contexto inicial
+
+---
+
+## 📚 Apurador
+
+Responsável por:
+
+- Encontrar múltiplas fontes
+- Comparar informações
+- Identificar divergências
+- Garantir diversidade de veículos
+
+---
+
+## ✅ Verificador Factual
+
+Responsável por:
+
+- Confirmar informações
+- Validar fatos
+- Detectar inconsistências
+- Avaliar confiabilidade das fontes
+
+---
+
+## ✍️ Redator
+
+Responsável por:
+
+- Produzir a matéria final
+- Organizar referências
+- Estruturar o texto jornalístico
+- Gerar arquivo Markdown
+
+---
+
+# 🔄 Workflow Inteligente
+
+A V4 utiliza recursos avançados de Workflow do Agno.
+
+## Loop de Apuração
+
+O sistema repete automaticamente a etapa de apuração até atingir um número mínimo de fontes confiáveis.
+
+```text
+Apuração
+   │
+   ▼
+Quantidade mínima atingida?
+   │
+ ┌─┴─┐
+ │   │
+Não Sim
+ │   │
+ ▼   ▼
+Repete Continua
+```
+
+Essa estratégia aumenta a qualidade das matérias produzidas.
+
+---
+
+# 🧩 Skills
+
+As responsabilidades foram desacopladas em Skills reutilizáveis.
+
+```text
+skills/
+├── pesquisa-noticias/
+├── apuracao-fontes/
+├── verificacao-factual/
+└── redacao-jornalistica/
+```
+
+Isso permite:
+
+- Reutilização
+- Facilidade de manutenção
+- Evolução independente de cada etapa
+
+---
+
+# 🛠️ Tecnologias
+
+### Linguagem
+
+- Python 3.13+
+
+### Framework de Agentes
+
+- Agno
+
+### Modelo de IA
+
+- Groq
+- GPT OSS 20B
+
+### Busca
+
+- DuckDuckGo Search
+
+### Orquestração
+
+- Agno Workflow
+- Step
+- Loop
+- Team
+
+### Persistência
+
+- Markdown
+
+### Interface
+
+- Streamlit
+
+---
+
+# 📂 Estrutura do Projeto
+
+```text
+Curadoria_Noticias/
+│
+├── agente/
+│   ├── agente_curador.py
+│   ├── agente_curador_v2.py
+│   ├── agente_curador_v3.py
+│   └── agente_curador_v4.py
+│
+├── skills/
+│   ├── pesquisa-noticias/
+│   ├── apuracao-fontes/
+│   ├── verificacao-factual/
+│   └── redacao-jornalistica/
+│
+├── output/
+│
+├── ui/
+│   ├── app.py
+│   ├── registry.py
+│   └── components/
+│
+└── README.md
+```
+
+---
+
+# ⚙️ Instalação
+
+Clone o projeto:
+
+```bash
+git clone https://github.com/GuiMRDS/Curadoria_Noticias.git
+```
+
+Entre na pasta:
+
+```bash
+cd Curadoria_Noticias
+```
+
+Instale as dependências:
+
+```bash
+uv sync
+```
+
+ou
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# 🔑 Configuração
+
+Crie um arquivo `.env`:
+
+```env
+GROQ_API_KEY=sua_chave
+```
+
+Obtenha sua chave em:
+
+https://console.groq.com
+
+---
+
+# ▶️ Executando
+
+## Workflow
+
+```bash
+python agente/agente_curador_v4.py
+```
+
+Exemplo:
+
+```python
+news_curator_workflow.print_response(
+    "Quem é Gustavo Guanabara?",
+    stream=True
+)
+```
+
+---
+
+## Interface Streamlit
+
+```bash
+streamlit run ui/app.py
+```
+
+---
+
+# 💡 Conceitos Explorados
+
+Este projeto explora conceitos modernos de IA e Engenharia de Software:
+
+- Multi-Agent Systems
+- Agent Engineering
+- Workflow Orchestration
+- Fact Checking Assistido por IA
+- Prompt Engineering
+- Tool Calling
+- Modularização por Skills
+- Arquiteturas Escaláveis de Agentes
+
+---
+
+# 👨‍💻 Autor
+
+**Guilherme Marinho**
+
+Software Engineer | Python | IA & Automação | C# .NET | Cloud | Cybersecurity
+
+GitHub:  
+https://github.com/GuiMRDS
+
+LinkedIn:  
+https://www.linkedin.com/in/guilhermemrds/
+
+---
+
+⭐ Se este projeto foi útil para você, considere deixar uma estrela no repositório.
