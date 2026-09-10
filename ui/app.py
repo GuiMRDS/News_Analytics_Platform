@@ -1,9 +1,15 @@
 # ui/app.py
 
 import streamlit as st
+from components.sidebar import render_sidebar
+import sys
+from pathlib import Path
+from registry import WORKFLOWS
 
-from ui.registry import WORKFLOWS
-from ui.components.sidebar import render_sidebar
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
 
 st.set_page_config(
     page_title="News Curator",
@@ -11,7 +17,7 @@ st.set_page_config(
     layout="wide"
 )
 
-versao = render_sidebar()
+versao = render_sidebar(WORKFLOWS)
 
 workflow = WORKFLOWS[versao]
 

@@ -1,9 +1,6 @@
-# ui/components/sidebar.py
-
 import streamlit as st
-from ui.registry import WORKFLOWS
 
-def render_sidebar():
+def render_sidebar(workflows):
 
     with st.sidebar:
 
@@ -11,7 +8,7 @@ def render_sidebar():
 
         versao = st.selectbox(
             "Versão",
-            list(WORKFLOWS.keys())
+            list(workflows.keys())
         )
 
         st.divider()

@@ -12,6 +12,7 @@ dependencies = [
     "groq>=1.7.0",
     "newspaper3k>=0.2.8",
     "openai==2.17.0",
+    "sc-pylibs>=0.0.0.1",
     "sqlalchemy>=2.0.52",
     "streamlit>=1.63.0",
 ]

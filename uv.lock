@@ -706,6 +706,7 @@ dependencies = [
     { name = "groq" },
     { name = "newspaper3k" },
     { name = "openai" },
+    { name = "sc-pylibs" },
     { name = "sqlalchemy" },
     { name = "streamlit" },
 ]
@@ -719,6 +720,7 @@ requires-dist = [
     { name = "groq", specifier = ">=1.7.0" },
     { name = "newspaper3k", specifier = ">=0.2.8" },
     { name = "openai", specifier = "==2.17.0" },
+    { name = "sc-pylibs", specifier = ">=0.0.0.1" },
     { name = "sqlalchemy", specifier = ">=2.0.52" },
     { name = "streamlit", specifier = ">=1.63.0" },
 ]
@@ -1140,6 +1142,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/04/3a/f0ee4d4dde9d3b69dedf1b5f74e7a40017046d55052d173e418c6a94f960/rpds_py-2026.6.3-cp312-cp312-win_amd64.whl", hash = "sha256:2c958bf94822e9290a40aaf2a822d4bc5c88099093e3948ad6c571eca9272e5f", size = 220394, upload-time = "2026-06-30T07:15:33.359Z" },
     { url = "https://files.pythonhosted.org/packages/f3/83/3382fe37f809b59f02aac04dbc4e765b480b46ee0227ed516e3bdc4d3dfc/rpds_py-2026.6.3-cp312-cp312-win_arm64.whl", hash = "sha256:22bffe6042b9bcb0822bcd1955ec00e245daf17b4344e4ed8e9551b976b63e96", size = 215753, upload-time = "2026-06-30T07:15:34.778Z" },
 ]
+
+[[package]]
+name = "sc-pylibs"
+version = "0.0.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/d9/cda6fc6ee0dad192432c869be32284784a0f8751dfc1963762dbf433ba2d/sc-pylibs-0.0.0.1.tar.gz", hash = "sha256:b1ac53216a8a09e5f2ef92220a79196a7cf25c63f060207ec48c40d0de90ea95", size = 969, upload-time = "2024-09-09T09:05:14.013Z" }
 
 [[package]]
 name = "shellingham"
