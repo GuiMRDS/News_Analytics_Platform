@@ -3,12 +3,10 @@ import re
 from typing import List
 from pathlib import Path
 from dotenv import load_dotenv
-from newspaper import urls
 
 load_dotenv()
 
 from agno.agent import Agent
-from agno.team import Team
 from agno.models.groq import Groq
 from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
@@ -23,7 +21,15 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MIN_FONTES = 3
 MAX_TENTATIVAS_APURACAO = 3
 
-skills_dir = Path(__file__).parent / "skills"
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+skills_dir = BASE_DIR / "skills"
+
+if not skills_dir.exists():
+    raise FileNotFoundError(
+        f"Skills não encontradas: {skills_dir}"
+    )
+
 shared_skills = Skills(
     loaders=[
         LocalSkills(str(skills_dir)),
@@ -32,6 +38,7 @@ shared_skills = Skills(
 
 output_dir = Path(__file__).parent / "output/V2"
 output_dir.mkdir(parents=True, exist_ok=True)
+
 file_tools = FileTools(
     base_dir=output_dir,
     enable_save_file=True,
@@ -128,32 +135,38 @@ redator = Agent(
 
 
 def contar_fontes(texto: str) -> int:
-    """
-        Função Auxiliar: Extração e contagem analítica
-
-        Analisa o texto retornado pelo agente Apurador para contar o número
-        de fontes distintas que ele conseguiu encontrar. Para garantir que
-        não estejamos contando fontes repetidas apenas pelo título da seção,
-        usamos expressões regulares (Regex) para varrer o texto.
-
-        Como funciona:
-        1. Isola a seção específica ("FONTES COLETADAS") do dossiê.
-        2. Conta quantos itens formatados em Markdown (ex: "- **Veículo**") existem.
-        3. Conta quantos links web (URLs ou http/https) distintos existem no texto.
-        4. Retorna o maior número entre as duas contagens (garantimos assim o pior caso).
-    """
-
     secao = texto
+
     match = re.search(
-        r"##\s*FONTES COLETADAS(.*?)(##|$)", texto, re.DOTALL | re.IGNORECASE
+        r"##\s*FONTES COLETADAS(.*?)(##|$)",
+        texto,
+        re.DOTALL | re.IGNORECASE,
     )
+
     if match:
         secao = match.group(1)
 
+    fontes = re.findall(
+        r"\*\*(.*?)\*\*",
+        secao
+    )
 
-    fontes_por_marcador = re.findall(r"^-\s+\*\*", secao, re.MULTILINE)
+    urls_encontradas = re.findall(
+        r"https?://[^\s)]+",
+        secao
+    )
 
-    return max(len(fontes_por_marcador), len(urls))
+    fontes_unicas = {
+        fonte.strip().lower()
+        for fonte in fontes
+    }
+
+    urls_unicas = set(urls_encontradas)
+
+    return max(
+        len(fontes_unicas),
+        len(urls_unicas)
+    )
 
 def fontes_suficientes(outputs: List[StepOutput]) -> bool:
     """
@@ -190,7 +203,7 @@ def fontes_suficientes(outputs: List[StepOutput]) -> bool:
 pesquisa_step = Step(
     name="pesquisa",
     description="Pesquisa de notícias sobre o tema",
-    team=time_research,
+    agent=pesquisador,
 )
 
 apuracao_step = Step(
