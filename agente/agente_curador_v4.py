@@ -4,21 +4,16 @@ Research Team -> Apuração (loop) -> Validação de Fontes -> Fact Checking
 -> Redação -> Exportação Markdown
 """
 
-import re
-import unicodedata
-from datetime import date
-from typing import List
-
 from agno.agent import Agent
 from agno.team import Team
-from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.workflow import Workflow, Step, Loop
 from agno.workflow.types import StepInput, StepOutput
 
+from agente import passos
 from agente.comum import (
-    BASE_DIR,
+    LIMITE_CHAMADAS_FERRAMENTAS,
     carregar_skills,
-    contar_fontes,
+    criar_busca,
     criar_modelo,
     diretorio_saida,
     verificar_api_key,
@@ -47,7 +42,8 @@ pesquisador_nacional = Agent(
         "Execute a skill 'pesquisa-noticias' pesquisando em português.",
         "Inclua veículo e URL completa de cada notícia encontrada.",
     ],
-    tools=[DuckDuckGoTools()],
+    tools=[criar_busca()],
+    tool_call_limit=LIMITE_CHAMADAS_FERRAMENTAS,
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -58,12 +54,13 @@ pesquisador_internacional = Agent(
     model=criar_modelo(),
     skills=shared_skills,
     instructions=[
-        "Você é um pesquisador de notícias focado em agências e veículos internacionais (Reuters, AP, AFP, BBC etc.).",
+        "Você é um pesquisador de notícias focado em agências e veículos internacionais (Reuters, AP, AFP, Bloomberg etc.).",
         "Antes de começar, carregue as instruções da skill usando get_skill_instructions.",
         "Execute a skill 'pesquisa-noticias' pesquisando em inglês e português.",
         "Inclua veículo e URL completa de cada notícia encontrada.",
     ],
-    tools=[DuckDuckGoTools()],
+    tools=[criar_busca()],
+    tool_call_limit=LIMITE_CHAMADAS_FERRAMENTAS,
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -77,7 +74,7 @@ research_team = Team(
         "Você é o líder da equipe de pesquisa.",
         "Delegue a pesquisa do tema a todos os membros e consolide os resultados.",
         "Escolha a notícia principal (a mais relevante e atual) considerando os dois levantamentos.",
-        "Retorne exatamente: **Título**, **Resumo** (2-3 frases), **Fonte** e **Palavras-chave**.",
+        "Retorne exatamente: **Título**, **Resumo** (2-3 frases), **Fonte**, **Ativos e indicadores envolvidos** e **Palavras-chave**.",
         "Ao final, liste todas as fontes encontradas pelos membros no formato: - **Nome do Veículo**: Título (URL).",
     ],
     add_datetime_to_context=True,
@@ -101,10 +98,9 @@ apurador = Agent(
         "Na seção '## FONTES COLETADAS', SEMPRE inclua o nome do veículo em negrito e a URL completa.",
         "Use o formato: - **Nome do Veículo**: Título da matéria (URL)",
         "Se a apuração anterior não atingiu o mínimo, busque fontes DIFERENTES das já encontradas.",
-        "Tente outros veículos, agências internacionais (Reuters, AP, AFP) e portais variados.",
-        "Pesquise em inglês e português para ampliar o alcance de fontes.",
     ],
-    tools=[DuckDuckGoTools()],
+    tools=[criar_busca()],
+    tool_call_limit=LIMITE_CHAMADAS_FERRAMENTAS,
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -120,7 +116,8 @@ verificador = Agent(
         "Leve em conta o resultado da '## VALIDAÇÃO DE FONTES' no início do dossiê.",
         "Preserve veículos e URLs de todas as fontes para uso do redator.",
     ],
-    tools=[DuckDuckGoTools()],
+    tools=[criar_busca()],
+    tool_call_limit=LIMITE_CHAMADAS_FERRAMENTAS,
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -147,71 +144,30 @@ redator = Agent(
 # Funções do workflow
 # ---------------------------------------------------------------------------
 
-def fontes_suficientes(outputs: List[StepOutput]) -> bool:
-    """Condição de parada do loop de apuração: atingiu MIN_FONTES?"""
-    if not outputs:
-        return False
-    return contar_fontes(str(outputs[-1].content or "")) >= MIN_FONTES
+fontes_suficientes = passos.criar_condicao_fontes(MIN_FONTES)
+_slug = passos.slug
 
 
 def validar_fontes(step_input: StepInput) -> StepOutput:
-    """Valida (sem LLM) a quantidade de fontes do dossiê e anota o resultado."""
-    dossie = str(step_input.previous_step_content or "")
-    total = contar_fontes(dossie)
-
-    if total >= MIN_FONTES:
-        status = f"✅ APROVADO — {total} fontes distintas (mínimo {MIN_FONTES})."
-    else:
-        status = (
-            f"⚠️ INSUFICIENTE — apenas {total} fontes distintas (mínimo {MIN_FONTES}) "
-            f"após {MAX_TENTATIVAS_APURACAO} tentativas de apuração. "
-            "O redator deve incluir a nota de fontes limitadas."
-        )
-
-    return StepOutput(content=f"## VALIDAÇÃO DE FONTES\n\n{status}\n\n{dossie}")
-
-
-def _slug(texto: str, limite: int = 50) -> str:
-    texto = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
-    texto = re.sub(r"[^a-zA-Z0-9]+", "_", texto).strip("_").lower()
-    return texto[:limite].rstrip("_") or "materia"
+    return passos.validar_fontes(step_input, MIN_FONTES, MAX_TENTATIVAS_APURACAO)
 
 
 def exportar_markdown(step_input: StepInput) -> StepOutput:
-    """Salva a matéria final em output/V4/materia_<tema>_<data>.md."""
-    materia = str(step_input.previous_step_content or "").strip()
-    tema = step_input.get_input_as_string() or "materia"
-
-    arquivo = output_dir / f"materia_{_slug(tema)}_{date.today().isoformat()}.md"
-    arquivo.write_text(materia + "\n", encoding="utf-8")
-
-    try:
-        caminho = arquivo.relative_to(BASE_DIR).as_posix()
-    except ValueError:
-        caminho = arquivo.as_posix()
-    return StepOutput(content=f"{materia}\n\n---\n_Matéria salva em `{caminho}`_")
+    return passos.exportar_markdown(step_input, output_dir)
 
 
 # ---------------------------------------------------------------------------
 # Workflow
 # ---------------------------------------------------------------------------
 
-pesquisa_step = Step(
-    name="pesquisa",
-    description="Research Team: pesquisa nacional e internacional consolidada",
-    team=research_team,
+pesquisa_step = passos.passo_agente(
+    "pesquisa", research_team, "Research Team: pesquisa nacional e internacional consolidada"
 )
 
 apuracao_loop = Loop(
     name="apuracao_loop",
     description="Repete a apuração até atingir o mínimo de fontes",
-    steps=[
-        Step(
-            name="apuracao",
-            description="Apuração multi-fonte",
-            agent=apurador,
-        )
-    ],
+    steps=[passos.passo_agente("apuracao", apurador, "Apuração multi-fonte")],
     max_iterations=MAX_TENTATIVAS_APURACAO,
     end_condition=fontes_suficientes,
 )
@@ -222,17 +178,9 @@ validacao_step = Step(
     executor=validar_fontes,
 )
 
-verificacao_step = Step(
-    name="verificacao",
-    description="Verificação factual do dossiê",
-    agent=verificador,
-)
+verificacao_step = passos.passo_agente("verificacao", verificador, "Verificação factual do dossiê")
 
-redacao_step = Step(
-    name="redacao",
-    description="Redação jornalística final",
-    agent=redator,
-)
+redacao_step = passos.passo_agente("redacao", redator, "Redação jornalística final")
 
 exportacao_step = Step(
     name="exportacao",

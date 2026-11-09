@@ -21,6 +21,15 @@ class Versao:
 
 
 VERSOES: dict[str, Versao] = {
+    "V5": Versao(
+        rotulo="V5 - Investidor",
+        modulo="agente.agente_curador_v5",
+        objeto="investor_workflow",
+        descricao="Foco em mercado financeiro: equipe de pesquisa (Brasil + global), apuração, "
+        "fact checking com dados reais, analista de investimentos (cotações B3, Selic, CDI, IPCA, "
+        "dólar) e matéria com a seção 'O que isso significa para o investidor'.",
+        pipeline="Research Team → Apuração (loop) → Validação → Fact Check → Análise de Mercado → Redação → Markdown",
+    ),
     "V4": Versao(
         rotulo="V4 - Multi-Agent Research Pipeline",
         modulo="agente.agente_curador_v4",
@@ -52,7 +61,7 @@ VERSOES: dict[str, Versao] = {
     ),
 }
 
-VERSAO_PADRAO = "V4"
+VERSAO_PADRAO = "V5"
 
 
 @lru_cache(maxsize=None)

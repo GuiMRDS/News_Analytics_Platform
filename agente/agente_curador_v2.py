@@ -1,8 +1,10 @@
 from agno.agent import Agent
-from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.workflow import Workflow
 
+from agente.passos import passo_agente
+
 from agente.comum import (
+    criar_busca,
     carregar_skills,
     criar_file_tools,
     criar_modelo,
@@ -23,7 +25,7 @@ pesquisador = Agent(
         "Execute a skill 'pesquisa-noticias' e retorne exatamente no formato definido nela.",
         "Salve o resultado da pesquisa em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -38,7 +40,7 @@ apurador = Agent(
         "Receba a saída do pesquisador e execute a skill 'apuracao-fontes'.",
         "Salve o resultado da apuração em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -53,7 +55,7 @@ verificador = Agent(
         "Receba o dossiê do apurador e execute a skill 'verificacao-factual'.",
         "Salve o resultado da verificação em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -78,7 +80,12 @@ redator = Agent(
 workflow = Workflow(
     name="Curador de Noticias com Workflow",
     description="Pesquisa, apura, verifica e redige matéria final",
-    steps=[pesquisador, apurador, verificador, redator],
+    steps=[
+        passo_agente("pesquisa", pesquisador),
+        passo_agente("apuracao", apurador),
+        passo_agente("verificacao", verificador),
+        passo_agente("redacao", redator),
+    ],
 )
 
 

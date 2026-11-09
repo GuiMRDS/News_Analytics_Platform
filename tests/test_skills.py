@@ -9,6 +9,7 @@ SKILLS_ESPERADAS = {
     "apuracao-fontes",
     "verificacao-factual",
     "redacao-jornalistica",
+    "analise-mercado",
 }
 
 
@@ -35,3 +36,18 @@ def test_frontmatter_da_skill(nome):
 def test_apuracao_define_secao_usada_por_contar_fontes():
     texto = (SKILLS_DIR / "apuracao-fontes" / "SKILL.md").read_text(encoding="utf-8")
     assert "## FONTES COLETADAS" in texto
+
+
+def test_analise_mercado_cita_ferramentas_que_existem():
+    from agente.ferramentas_mercado import MercadoFinanceiroTools
+
+    texto = (SKILLS_DIR / "analise-mercado" / "SKILL.md").read_text(encoding="utf-8")
+    citadas = set(re.findall(r"`([a-z_]+)`", texto))
+    assert citadas, "a skill deve citar as ferramentas pelo nome"
+    assert citadas <= set(MercadoFinanceiroTools().functions)
+
+
+def test_redacao_tem_secao_do_investidor_e_aviso():
+    texto = (SKILLS_DIR / "redacao-jornalistica" / "SKILL.md").read_text(encoding="utf-8")
+    assert "O que isso significa para o investidor" in texto
+    assert "não constitui recomendação de investimento" in texto

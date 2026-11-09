@@ -1,237 +1,90 @@
-# 📰 Curadoria de Notícias com IA
+# 📈 News Analytics Platform — Notícias e Inteligência para Investidores
 
-Sistema de curadoria jornalística baseado em agentes de IA utilizando **Agno**, **Groq**, **Workflows**, **Skills Customizadas** e **Arquitetura Multiagente**.
+Plataforma de notícias do **mercado financeiro** baseada em agentes de IA (**Agno** + **Groq**), feita para ajudar investidores a entender o que move **ações, renda fixa, renda variável, fundos, câmbio, cripto e a economia**.
 
-O projeto simula o fluxo de trabalho de uma redação moderna, permitindo que agentes especializados pesquisem, apurem, validem e redijam matérias jornalísticas automaticamente.
+Uma redação de agentes especializados pesquisa a notícia, apura em múltiplas fontes, checa os fatos, cruza com **dados reais de mercado** (cotações da B3 e globais, Selic, CDI, IPCA, dólar) e entrega uma matéria clara, com a seção **"O que isso significa para o investidor"**. Temas fora do mercado também são aceitos.
+
+> Conteúdo informativo; não constitui recomendação de investimento.
 
 ---
 
-## 🚀 Objetivo
+## 🚀 O que a plataforma faz
 
-Construir uma plataforma de curadoria de notícias utilizando Inteligência Artificial para:
-
-- Pesquisar informações em múltiplas fontes
-- Realizar apuração jornalística
-- Executar verificação factual
-- Gerar matérias estruturadas
-- Evoluir diferentes arquiteturas de agentes (V1, V2, V3, V4...)
-- Comparar estratégias de orquestração com Agno
+- Encontra a notícia mais relevante sobre um ativo, indicador ou tema ("Por que PETR4 caiu?", "Copom e a Selic", "FIIs").
+- Apura em veículos especializados (Valor, InfoMoney, Bloomberg Línea, Reuters...) e fontes oficiais (B3, CVM, Banco Central).
+- Verifica números: cotações e indicadores são conferidos com dados oficiais.
+- Analisa o impacto por classe de ativo, com painel de mercado e glossário.
+- Redige a matéria com referências numeradas e salva em Markdown.
+- Mostra o mercado ao vivo na interface: Ibovespa, dólar, S&P 500, Nasdaq, Bitcoin, Brent, Selic, CDI, IPCA e PTAX.
 
 ---
 
 # 🏗️ Arquitetura
 
-O projeto evolui através de versões, cada uma explorando diferentes abordagens de engenharia de agentes.
+O projeto evolui por versões, cada uma explorando uma arquitetura de agentes. Todas estão disponíveis no seletor do chat.
 
-## V1 — Agente Monolítico
+| Versão | Arquitetura |
+|---|---|
+| **V5 — Investidor** (padrão) | Research Team de mercado → Apuração (loop) → Validação → Fact Check com dados → **Analista de Investimentos** → Redação → Markdown |
+| V4 — Multi-Agent Research Pipeline | Research Team → Apuração (loop) → Validação → Fact Check → Redação → Markdown |
+| V3 — Loop + Fact Check | Pesquisa → Apuração (loop até 3 fontes) → Verificação → Redação |
+| V2 — Workflow | Pesquisador → Apurador → Verificador → Redator |
+| V1 — Agente único | Um agente executa todas as etapas |
 
-Um único agente responsável por executar todas as etapas da curadoria.
+## V5 — Investidor
 
 ```text
-Tema
+Pergunta do investidor
  ↓
-Agente Jornalista
+Research Team (Pesquisador Brasil + Pesquisador Global)
  ↓
-Matéria Final
+Apuração ──► fontes suficientes? ──não──► repete (até 2x)
+ ↓ sim
+Validação de fontes (código, sem LLM)
+ ↓
+Fact Check (busca + cotações/indicadores)
+ ↓
+Analista de Investimentos (painel, impacto por classe, riscos, glossário)
+ ↓
+Redação ("O que isso significa para o investidor")
+ ↓
+Markdown em output/V5/
 ```
 
 ---
 
-## V2 — Workflow Sequencial
+# 🤖 Agentes e skills
 
-Separação das responsabilidades em agentes especializados.
+| Skill | Papel |
+|---|---|
+| `pesquisa-noticias` | Notícia principal, ativos/indicadores envolvidos e palavras-chave |
+| `apuracao-fontes` | Dossiê: fontes, números-chave, linha do tempo, consensos e contradições |
+| `verificacao-factual` | Fatos confirmados/disputados, dados de mercado conferidos, alerta ao redator |
+| `analise-mercado` | Painel de mercado, impacto em renda variável/fixa/fundos/câmbio, riscos, glossário |
+| `redacao-jornalistica` | Matéria de 450–700 palavras com seção para o investidor e referências |
 
-```text
-Tema
- ↓
-Pesquisador
- ↓
-Apurador
- ↓
-Verificador
- ↓
-Redator
- ↓
-Matéria Final
-```
+## 📊 Ferramentas de mercado (`agente/ferramentas_mercado.py`)
 
----
+Gratuitas e sem chave de API:
 
-## V3 — Workflow com Controle de Qualidade
-
-Introdução de validações e melhorias no processo de apuração.
-
-```text
-Tema
- ↓
-Pesquisa
- ↓
-Apuração
- ↓
-Validação
- ↓
-Redação
- ↓
-Matéria Final
-```
-
----
-
-## V4 — Multi-Agent Research Pipeline
-
-Versão atual.
-
-Implementa:
-
-- Equipe de pesquisa
-- Loop de apuração
-- Validação de quantidade mínima de fontes
-- Verificação factual
-- Redação automatizada
-- Exportação Markdown
-
-```text
-Tema
- ↓
-Research Team
- ↓
-Apuração
- ↓
-Validação de Fontes
- ↓
-Fact Checking
- ↓
-Redação
- ↓
-Markdown
-```
-
----
-
-# 🤖 Agentes Especializados
-
-## 🔍 Pesquisador
-
-Responsável por:
-
-- Buscar informações relevantes
-- Identificar notícias recentes
-- Coletar contexto inicial
-
----
-
-## 📚 Apurador
-
-Responsável por:
-
-- Encontrar múltiplas fontes
-- Comparar informações
-- Identificar divergências
-- Garantir diversidade de veículos
-
----
-
-## ✅ Verificador Factual
-
-Responsável por:
-
-- Confirmar informações
-- Validar fatos
-- Detectar inconsistências
-- Avaliar confiabilidade das fontes
-
----
-
-## ✍️ Redator
-
-Responsável por:
-
-- Produzir a matéria final
-- Organizar referências
-- Estruturar o texto jornalístico
-- Gerar arquivo Markdown
-
----
-
-# 🔄 Workflow Inteligente
-
-A V4 utiliza recursos avançados de Workflow do Agno.
-
-## Loop de Apuração
-
-O sistema repete automaticamente a etapa de apuração até atingir um número mínimo de fontes confiáveis.
-
-```text
-Apuração
-   │
-   ▼
-Quantidade mínima atingida?
-   │
- ┌─┴─┐
- │   │
-Não Sim
- │   │
- ▼   ▼
-Repete Continua
-```
-
-Essa estratégia aumenta a qualidade das matérias produzidas.
-
----
-
-# 🧩 Skills
-
-As responsabilidades foram desacopladas em Skills reutilizáveis.
-
-```text
-skills/
-├── pesquisa-noticias/
-├── apuracao-fontes/
-├── verificacao-factual/
-└── redacao-jornalistica/
-```
-
-Isso permite:
-
-- Reutilização
-- Facilidade de manutenção
-- Evolução independente de cada etapa
+| Ferramenta | Fonte | Exemplo |
+|---|---|---|
+| `cotacao_ativo` | Yahoo Finance | PETR4, VALE3, MXRF11 (FII), AAPL34 (BDR), AAPL, IBOV, DOLAR, BITCOIN |
+| `indicadores_economicos` | Banco Central (SGS) | Selic meta, CDI, IPCA 12 meses, dólar PTAX |
+| `panorama_mercado` | Yahoo Finance | Ibovespa, dólar, S&P 500, Nasdaq, Bitcoin, Brent |
+| `simular_investimento_renda_fixa` | cálculo local | CDB/Tesouro com IR regressivo, LCI/LCA isentas |
 
 ---
 
 # 🛠️ Tecnologias
 
-### Linguagem
-
-- Python 3.12 ou 3.13 (oficial, python.org / Python Install Manager)
-
-### Framework de Agentes
-
-- Agno
-
-### Modelo de IA
-
-- Groq
-- GPT OSS 20B
-
-### Busca
-
-- DuckDuckGo Search
-
-### Orquestração
-
-- Agno Workflow
-- Step
-- Loop
-- Team
-
-### Persistência
-
-- Markdown
-
-### Interface
-
-- Streamlit
+- **Python** 3.12 ou 3.13 (oficial, python.org / Python Install Manager)
+- **Agno** 2.4.8: Agent, Team, Workflow, Step, Loop
+- **Groq**: `openai/gpt-oss-20b` (configurável)
+- **Busca**: `ddgs` (backend `auto`)
+- **Dados de mercado**: `yfinance` + API SGS do Banco Central
+- **Interface**: Streamlit (chat)
+- **Testes**: pytest + Streamlit AppTest + GitHub Actions
 
 ---
 
@@ -239,104 +92,59 @@ Isso permite:
 
 ```text
 News_Analytics_Platform/
-│
 ├── agente/
-│   ├── comum.py               # configuração compartilhada
-│   ├── agente_curador.py
-│   ├── agente_curador_v2.py
-│   ├── agente_curador_v3.py
-│   └── agente_curador_v4.py
-│
-├── skills/
-│   ├── pesquisa-noticias/
-│   ├── apuracao-fontes/
-│   ├── verificacao-factual/
-│   └── redacao-jornalistica/
-│
-├── output/                  # matérias geradas (V1..V4), ignorado pelo git
-│
-├── ui/
-│   ├── app.py
-│   ├── registry.py
-│   └── components/
-│
-├── tests/                   # pytest (sem chamadas ao LLM)
-├── .github/workflows/       # CI: testes automáticos
-└── README.md
+│   ├── comum.py                 # configuração compartilhada (modelo, busca, skills, caminhos)
+│   ├── passos.py                # passos de workflow reutilizáveis
+│   ├── ferramentas_mercado.py   # cotações, indicadores BCB, simulador de renda fixa
+│   ├── agente_curador.py        # V1
+│   ├── agente_curador_v2.py     # V2
+│   ├── agente_curador_v3.py     # V3
+│   ├── agente_curador_v4.py     # V4
+│   └── agente_curador_v5.py     # V5 — Investidor
+├── skills/                      # pesquisa, apuração, verificação, análise de mercado, redação
+├── ui/                          # app Streamlit (chat + painel de mercado)
+├── tests/                       # pytest (sem LLM e sem rede)
+├── .github/workflows/           # CI: testes automáticos
+└── output/                      # matérias geradas (ignorado pelo git)
 ```
 
 ---
 
 # ⚙️ Instalação
 
-Clone o projeto:
-
 ```bash
 git clone https://github.com/GuiMRDS/News_Analytics_Platform.git
-```
-
-Entre na pasta:
-
-```bash
 cd News_Analytics_Platform
-```
-
-Instale as dependências:
-
-```bash
 uv sync
 ```
 
-> **Windows com Smart App Control:** o Windows bloqueia o Python baixado pelo uv e os executáveis gerados em `.venv\Scripts` (`DLL load failed ... Uma política de Controle de Aplicativo bloqueou este arquivo`). Por isso o projeto está configurado com `python-preference = "only-system"`. Instale o Python oficial (`py install 3.13` ou python.org), rode `uv sync` e execute ferramentas sempre via `python -m` (ex.: `python -m streamlit`, `python -m pytest`).
-
----
+> **Windows com Smart App Control:** o Windows bloqueia o Python baixado pelo uv e os executáveis gerados em `.venv\Scripts` (`DLL load failed ... Uma política de Controle de Aplicativo bloqueou este arquivo`). Por isso o projeto usa `python-preference = "only-system"`. Instale o Python oficial (`py install 3.13` ou python.org), rode `uv sync` e execute as ferramentas sempre via `python -m` (`python -m streamlit`, `python -m pytest`).
 
 # 🔑 Configuração
 
-Copie o `.env.example` para `.env` e preencha a chave:
+Copie o `.env.example` para `.env`:
 
 ```env
 GROQ_API_KEY=sua_chave
+# opcionais
+GROQ_MODEL_ID=openai/gpt-oss-20b
+BUSCA_BACKEND=auto
 ```
 
-Obtenha sua chave em:
+Obtenha a chave em https://console.groq.com.
 
-https://console.groq.com
+> **Limite do plano gratuito do Groq:** 8.000 tokens por minuto por modelo. Cada chamada de ferramenta é uma nova requisição ao modelo, então um workflow completo leva vários minutos e boa parte desse tempo é espera pela cota. A V5 economiza tokens injetando só a skill de cada agente e limitando as chamadas de ferramenta; o plano Developer do Groq deixa tudo bem mais rápido.
 
 ---
 
 # ▶️ Executando
 
-## Workflow
-
-Execute a partir da raiz do projeto, como módulo:
-
 ```bash
-uv run python -m agente.agente_curador_v4
+uv run python -m streamlit run ui/app.py          # interface (chat)
+uv run python -m agente.agente_curador_v5         # V5 no terminal
 ```
 
-As versões anteriores rodam da mesma forma (`agente.agente_curador`, `agente.agente_curador_v2`, `agente.agente_curador_v3`). As matérias são salvas em `output/<versão>/`.
-
-Exemplo:
-
-```python
-research_pipeline_workflow.print_response(
-    "Quem é Gustavo Guanabara?",
-    stream=True
-)
-```
-
----
-
-## Interface Streamlit
-
-```bash
-uv run python -m streamlit run ui/app.py
-```
-
-A interface é um chat: escolha a versão dos agentes (V1–V4) no seletor acima da conversa — dá para trocar a qualquer momento, e cada resposta mostra qual versão a gerou.
-
----
+Na interface, escolha a versão dos agentes no seletor acima do chat (dá para trocar a qualquer momento), use as sugestões ou pergunte sobre qualquer ativo/tema. A barra lateral mostra o mercado ao vivo.
 
 ## Testes
 
@@ -344,22 +152,13 @@ A interface é um chat: escolha a versão dos agentes (V1–V4) no seletor acima
 uv run python -m pytest
 ```
 
-Os testes não chamam o LLM nem a web (usam chave fictícia e workflows falsos) e rodam automaticamente no GitHub Actions a cada push/PR (`.github/workflows/testes.yml`).
+Os testes não chamam o LLM, a web ou as APIs de mercado (tudo simulado) e rodam no GitHub Actions a cada push/PR.
 
 ---
 
-# 💡 Conceitos Explorados
+# 💡 Conceitos explorados
 
-Este projeto explora conceitos modernos de IA e Engenharia de Software:
-
-- Multi-Agent Systems
-- Agent Engineering
-- Workflow Orchestration
-- Fact Checking Assistido por IA
-- Prompt Engineering
-- Tool Calling
-- Modularização por Skills
-- Arquiteturas Escaláveis de Agentes
+Multi-Agent Systems · Agent Engineering · Workflow Orchestration · Fact Checking assistido por IA · Tool Calling com dados reais · Modularização por Skills · Otimização de tokens para rate limits
 
 ---
 
@@ -369,11 +168,8 @@ Este projeto explora conceitos modernos de IA e Engenharia de Software:
 
 Software Engineer | Python | IA & Automação | C# .NET | Cloud | Cybersecurity
 
-GitHub:  
-https://github.com/GuiMRDS
-
-LinkedIn:  
-https://www.linkedin.com/in/guilhermemrds/
+GitHub: https://github.com/GuiMRDS
+LinkedIn: https://www.linkedin.com/in/guilhermemrds/
 
 ---
 

@@ -1,4 +1,4 @@
-# CONTEXT.md — News Analytics Platform (Curadoria de Notícias com IA)
+# CONTEXT.md — News Analytics Platform (Notícias e Inteligência para Investidores)
 
 Documento de contexto do projeto: o que é, como está organizado, como funciona e quais são as lacunas conhecidas. Para regras de trabalho de agentes de código, veja [AGENTS.md](AGENTS.md).
 
@@ -6,14 +6,16 @@ Documento de contexto do projeto: o que é, como está organizado, como funciona
 
 ## 1. Visão geral
 
-Sistema de curadoria jornalística baseado em agentes de IA. Recebe um **tema** e produz uma **matéria jornalística em Markdown**, simulando o fluxo de uma redação: pesquisa → apuração → verificação factual → redação.
+Plataforma de notícias **especializada em mercado financeiro e investimentos**: ações, renda fixa, renda variável, fundos (incluindo FIIs), câmbio, cripto, juros, inflação e economia. O objetivo é ajudar investidores a entender notícias e cotações. Temas fora do mercado também são aceitos.
 
-O projeto é também um laboratório de **engenharia de agentes**: cada versão (V1 a V4) explora uma arquitetura de orquestração diferente com o framework **Agno**, permitindo comparar as abordagens.
+Uma "redação" de agentes de IA (**Agno** + **Groq**) recebe uma pergunta ou tema, pesquisa, apura em múltiplas fontes, checa fatos, cruza com **dados reais de mercado** (Yahoo Finance e Banco Central) e entrega uma matéria em Markdown com a seção "O que isso significa para o investidor". Nunca faz recomendação de investimento.
+
+O projeto também é um laboratório de **engenharia de agentes**: cada versão (V1 a V5) usa uma arquitetura diferente, e todas podem ser comparadas pela UI.
 
 - **Autor:** Guilherme Marinho ([GitHub](https://github.com/GuiMRDS))
 - **Repositório:** `https://github.com/GuiMRDS/News_Analytics_Platform`
-- **Nome do pacote (`pyproject.toml`):** `news-curator` v0.1.0
-- **Idioma do domínio:** português brasileiro (prompts, skills, saída e nomes de variáveis)
+- **Pacote (`pyproject.toml`):** `news-curator` v0.1.0
+- **Idioma do domínio:** português brasileiro
 
 ---
 
@@ -21,15 +23,17 @@ O projeto é também um laboratório de **engenharia de agentes**: cada versão 
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem | Python **3.12–3.13** (`>=3.12,<3.14`; `.python-version` = 3.13). Somente Python **do sistema** (`[tool.uv] python-preference = "only-system"`), ver §9 |
-| Gerenciador de pacotes | `uv` (`uv.lock` versionado) |
-| Framework de agentes | `agno==2.4.8` (`Agent`, `Team`, `Workflow`, `Step`, `Loop`, `Skills`, `LocalSkills`) |
-| LLM | Groq, modelo `openai/gpt-oss-20b` |
-| Busca | `DuckDuckGoTools` do Agno (`ddgs`, `duckduckgo-search`) |
-| Persistência | Arquivos Markdown em `output/<versão>/` |
-| Interface | Streamlit (chat) |
+| Linguagem | Python **3.12–3.13** (`>=3.12,<3.14`; `.python-version` = 3.13). Somente Python **do sistema** (`[tool.uv] python-preference = "only-system"`), ver §10 |
+| Pacotes | `uv` (`uv.lock` versionado) |
+| Agentes | `agno==2.4.8` (`Agent`, `Team`, `Workflow`, `Step`, `Loop`) |
+| LLM | Groq, `openai/gpt-oss-20b` por padrão (`GROQ_MODEL_ID`) |
+| Busca | `WebSearchTools` do Agno sobre `ddgs`, backend `auto` (`BUSCA_BACKEND`) |
+| Dados de mercado | `yfinance` (B3 com sufixo `.SA`, EUA, índices, câmbio, cripto, commodities) + API SGS do Banco Central |
+| Interface | Streamlit (chat + painel de mercado) |
 | Testes | `pytest` + `streamlit.testing.v1.AppTest`; CI no GitHub Actions |
-| Configuração | `.env` na raiz com `GROQ_API_KEY` (modelo em `.env.example`), carregado via `python-dotenv` |
+| Configuração | `.env` (`GROQ_API_KEY`; opcionais `GROQ_MODEL_ID`, `BUSCA_BACKEND`), modelo em `.env.example` |
+
+`fastapi` é obrigatório: `agno.workflow` o importa.
 
 ---
 
@@ -37,109 +41,98 @@ O projeto é também um laboratório de **engenharia de agentes**: cada versão 
 
 ```text
 News_Analytics_Platform/
-├── agente/                     # pacote Python
-│   ├── __init__.py
-│   ├── comum.py                # caminhos, modelo Groq, skills, FileTools, contar_fontes
-│   ├── agente_curador.py       # V1: agente monolítico (exporta `agente_noticias`)
-│   ├── agente_curador_v2.py    # V2: workflow sequencial (exporta `workflow`)
-│   ├── agente_curador_v3.py    # V3: Step + Loop (exporta `news_curator_workflow`)
-│   └── agente_curador_v4.py    # V4: Team + Loop + validação + exportação (exporta `research_pipeline_workflow`)
-├── skills/                     # Skills Agno (SKILL.md com frontmatter YAML)
-│   ├── pesquisa-noticias/
-│   ├── apuracao-fontes/
-│   ├── verificacao-factual/
-│   └── redacao-jornalistica/
+├── agente/
+│   ├── comum.py                 # modelo, busca, skills, caminhos, contar_fontes, ler_skill, erros amigáveis
+│   ├── passos.py                # passo_agente, validar_fontes, exportar_markdown, slug, condição do loop
+│   ├── ferramentas_mercado.py   # MercadoFinanceiroTools + funções de cotação/indicadores/simulação
+│   ├── agente_curador.py        # V1 (agente_noticias)
+│   ├── agente_curador_v2.py     # V2 (workflow)
+│   ├── agente_curador_v3.py     # V3 (news_curator_workflow)
+│   ├── agente_curador_v4.py     # V4 (research_pipeline_workflow)
+│   └── agente_curador_v5.py     # V5 — Investidor (investor_workflow)
+├── skills/                      # SKILL.md com frontmatter YAML
+│   ├── pesquisa-noticias/  apuracao-fontes/  verificacao-factual/
+│   ├── analise-mercado/    redacao-jornalistica/
 ├── ui/
-│   ├── app.py                  # App Streamlit
-│   ├── registry.py             # VERSOES + carregar_workflow (import sob demanda)
-│   └── components/sidebar.py   # Detalhes da versão + botão "Nova conversa"
-├── tests/                      # pytest (sem LLM): comum, skills, versões, UI
-├── .github/workflows/testes.yml  # CI: pytest em Ubuntu/Windows × Python 3.12/3.13
-├── output/                     # gerado em runtime (ignorado pelo git)
-├── .env.example
-├── .python-version             # 3.13
-├── pyproject.toml / uv.lock
-└── README.md
+│   ├── app.py                   # chat + seletor de versão + sugestões
+│   ├── registry.py              # VERSOES, VERSAO_PADRAO="V5", carregar_workflow (lazy)
+│   └── components/sidebar.py    # painel de mercado + detalhes da versão + nova conversa
+├── tests/                       # conftest (mercado simulado), comum, passos, ferramentas, skills, versões, UI
+├── .github/workflows/testes.yml # CI: Ubuntu/Windows × Python 3.12/3.13
+├── output/                      # matérias geradas (ignorado pelo git)
+└── .env.example / .python-version / pyproject.toml / uv.lock
 ```
 
 ---
 
-## 4. Módulo compartilhado (`agente/comum.py`)
+## 4. Módulos compartilhados
 
-| Símbolo | Descrição |
-|---|---|
-| `BASE_DIR`, `SKILLS_DIR`, `OUTPUT_DIR` | Caminhos resolvidos a partir da raiz do repositório |
-| `MODELO_ID` | `"openai/gpt-oss-20b"` |
-| `obter_api_key()` / `verificar_api_key()` | Lê a `GROQ_API_KEY`; a segunda levanta `RuntimeError` com mensagem clara se faltar |
-| `criar_modelo()` | Instância `Groq` configurada |
-| `carregar_skills()` | `Skills(LocalSkills(SKILLS_DIR))`; falha se a pasta não existir |
-| `diretorio_saida(versao)` / `criar_file_tools(versao)` | Cria `output/<versao>` e o `FileTools` correspondente |
-| `contar_fontes(texto)` | Conta fontes distintas na seção `## FONTES COLETADAS`: `max(veículos únicos em **negrito**, URLs únicas)` |
+### `agente/comum.py`
+- Caminhos: `BASE_DIR`, `SKILLS_DIR`, `OUTPUT_DIR`. `load_dotenv` roda no import.
+- `criar_modelo()`: Groq com `GROQ_MODEL_ID` e `max_retries=TENTATIVAS_API` (5); o SDK respeita o `retry-after` em erros 429.
+- `criar_busca()`: `WebSearchTools(backend="auto", fixed_max_results=MAX_RESULTADOS_BUSCA)` (5). **Não use `DuckDuckGoTools`**: ele fixa o backend `duckduckgo`, que parou de retornar resultados.
+- `LIMITE_CHAMADAS_FERRAMENTAS` (4): `tool_call_limit` padrão da V4.
+- `carregar_skills()`, `ler_skill(nome)` (corpo do SKILL.md sem o frontmatter), `diretorio_saida`, `criar_file_tools`, `contar_fontes`, `verificar_api_key`, `mensagem_erro_amigavel` (traduz 413/429/401 do Groq).
 
-`load_dotenv` é chamado no import de `comum`. Importar qualquer versão instancia os agentes e cria o diretório de saída (efeito colateral no import, usado pela UI).
+### `agente/passos.py`
+- `passo_agente(nome, agente_ou_team, descricao, max_retries=1)`: um `Step` com executor que roda o agente **sem streaming** e verifica `RunStatus.error`. Se falhar, levanta `ErroDoAgente` com a causa real. **Por quê:** no Agno 2.4.8, quando um agente falha dentro de `Step(agent=...)`, o erro real (ex.: 413 do Groq) é escondido por `'NoneType' object has no attribute 'parent_run_id'`. V2 a V5 usam esse wrapper.
+- `criar_condicao_fontes(min)`, `validar_fontes(step_input, min, tentativas)`, `slug`, `exportar_markdown(step_input, pasta)`.
 
----
-
-## 5. Pipeline jornalístico (domínio)
-
-Cada etapa é uma **skill** em `skills/<nome>/SKILL.md`. Os agentes carregam as instruções em tempo de execução via `get_skill_instructions`. A saída de uma etapa é a entrada da seguinte.
-
-| # | Skill | Papel | Entrada | Saída (seções) |
-|---|---|---|---|---|
-| 1 | `pesquisa-noticias` | Pesquisador | Tema | Título, Resumo, Fonte, Palavras-chave |
-| 2 | `apuracao-fontes` | Apurador | Notícia + palavras-chave | `## FONTES COLETADAS`, `## LINHA DO TEMPO`, `## PONTOS DE CONSENSO`, `## CONTRADIÇÕES E DIVERGÊNCIAS`, `## LACUNAS` |
-| 3 | `verificacao-factual` | Verificador | Dossiê | Fatos confirmados / disputados (resolvidos e não) / não verificados, lacunas, `## ALERTA AO REDATOR` |
-| 4 | `redacao-jornalistica` | Redator | Relatório de verificação | Matéria de 400–600 palavras + `## Referências` |
-
-### Regras editoriais centrais
-- **Nunca inventar** dados, nomes ou citações.
-- Mínimo de **3 fontes** (ideal 5+), priorizando Reuters, AP, AFP e grandes jornais.
-- Classificação de fatos: **CONFIRMADO** (2+ fontes), **DISPUTADO** (divergência), **NÃO VERIFICADO** (1 fonte).
-- Matéria: título original, lide (o quê/quem/quando/onde/por quê), pirâmide invertida, parágrafo de contexto, **sem bullet points no corpo**, tom imparcial.
-- Citações numéricas `[1]`, `[2]`… no corpo, todas correspondendo à seção `## Referências` (veículo — título. URL) e vice-versa.
+### `agente/ferramentas_mercado.py`
+- Funções puras: `normalizar_ticker` (`petr4` → `PETR4.SA`; apelidos como IBOV, DOLAR, BITCOIN, BRENT), `aliquota_ir` (tabela regressiva de 22,5% a 15%), `simular_renda_fixa`, `resumir_historico`.
+- Acesso a dados, isolado para os testes: `_historico(ticker, periodo)` (yfinance) e `_buscar_serie_bcb(codigo)` (SGS: 432 Selic meta, 4389 CDI, 13522 IPCA 12m, 1 PTAX).
+- Alto nível: `obter_cotacao`, `obter_indicadores`, `obter_panorama`. Nunca levantam exceção; em caso de falha devolvem `{"erro": ...}`.
+- `MercadoFinanceiroTools` (Toolkit): `cotacao_ativo`, `indicadores_economicos`, `panorama_mercado`, `simular_investimento_renda_fixa`, todas retornando JSON compacto.
 
 ---
 
-## 6. Versões da arquitetura
+## 5. Pipeline e skills (domínio)
 
-### V1 — Agente monolítico (`agente_curador.py`)
-Um único `Agent` executa as 4 skills em sequência e mostra só a matéria final. Ferramentas: DuckDuckGo + FileTools. Saída: `output/V1`.
+| Skill | Papel | Saída principal |
+|---|---|---|
+| `pesquisa-noticias` | Pesquisador | Título, Resumo, Fonte, **Ativos e indicadores envolvidos**, Palavras-chave |
+| `apuracao-fontes` | Apurador | `## FONTES COLETADAS` (`- **Veículo**: Título (URL)`), `## NÚMEROS-CHAVE`, linha do tempo, consensos, contradições, lacunas |
+| `verificacao-factual` | Verificador | Confirmados / disputados / não verificados, `## DADOS DE MERCADO CONFERIDOS`, `## FONTES`, `## ALERTA AO REDATOR` |
+| `analise-mercado` | Analista de Investimentos | `## PAINEL DE MERCADO`, `## IMPACTO POR CLASSE DE ATIVO`, `## RISCOS E O QUE ACOMPANHAR`, `## GLOSSÁRIO` |
+| `redacao-jornalistica` | Redator | Matéria de 450–700 palavras + `## O que isso significa para o investidor` + `## Referências` + aviso "não constitui recomendação de investimento" |
 
-### V2 — Workflow sequencial (`agente_curador_v2.py`)
-Quatro agentes (`pesquisador`, `apurador`, `verificador`, `redator`) passados diretamente como `steps` de um `Workflow`. Cada agente salva seu resultado em arquivo. Saída: `output/V2`.
-
-### V3 — Workflow com controle de qualidade (`agente_curador_v3.py`)
-```text
-pesquisa_step → apuracao_loop[apuracao_step] → verificacao_step → redacao_step
-```
-- `MIN_FONTES = 3`, `MAX_TENTATIVAS_APURACAO = 3`.
-- `Loop` repete a apuração até `fontes_suficientes(outputs)` ser `True` ou atingir o máximo de iterações.
-- O apurador é instruído a usar `- **Nome do Veículo**: Título (URL)` — essencial para `contar_fontes` funcionar.
-- O redator adiciona aviso `⚠️ NOTA` se houver menos de `MIN_FONTES` fontes e salva `materia_<tema>_<YYYY-MM-DD>.md` via `save_file`. Saída: `output/V3`.
-
-### V4 — Multi-Agent Research Pipeline (`agente_curador_v4.py`) — versão atual
-```text
-pesquisa_step (Research Team)
-  → apuracao_loop[apuracao]
-  → validacao_fontes   (função, sem LLM)
-  → verificacao
-  → redacao
-  → exportacao         (função, sem LLM)
-```
-- **Research Team** (`agno.team.Team`, `delegate_to_all_members=True`): `Pesquisador Nacional` (veículos brasileiros, PT) e `Pesquisador Internacional` (agências/veículos internacionais, EN+PT). O líder consolida a notícia principal no formato da skill `pesquisa-noticias` e lista todas as fontes.
-- **Loop de apuração** igual à V3.
-- **`validar_fontes`**: conta fontes de forma determinística e prefixa o dossiê com `## VALIDAÇÃO DE FONTES` (✅ aprovado ou ⚠️ insuficiente), sinalizando ao verificador e ao redator.
-- **`exportar_markdown`**: salva a matéria em `output/V4/materia_<slug-do-tema>_<YYYY-MM-DD>.md` sem depender de o LLM chamar a ferramenta, e anexa o caminho do arquivo à resposta. Nesta versão os agentes não usam `FileTools`.
+**Regras editoriais:**
+- nunca inventar dados ou cotações;
+- no mínimo 3 fontes;
+- priorizar veículos especializados (Valor, InfoMoney, Bloomberg Línea, Reuters, E-Investidor...) e fontes oficiais (B3, CVM, BCB, RI das empresas);
+- citações `[n]` consistentes com as referências;
+- parágrafos corridos;
+- tom imparcial e **sem recomendação de compra ou venda**.
 
 ---
 
-## 7. Interface Streamlit (chat)
+## 6. Versões
 
-- `ui/app.py`: interface de **chat** (`st.chat_input` / `st.chat_message`). Um `st.segmented_control` (key `versao`) acima da conversa permite **trocar a versão dos agentes a qualquer momento**; cada resposta mostra a versão que a gerou. O histórico fica em `st.session_state.mensagens` (`{"papel", "conteudo", "versao"}`). Erros do workflow aparecem como mensagem no chat, sem derrubar a página. Sem `GROQ_API_KEY`, mostra erro e para.
-- `ui/app.py` insere a raiz e `ui/` no `sys.path` **antes** de importar `registry`/`agente`.
-- `ui/registry.py`: `VERSOES` (chave `V1`..`V4` → `Versao(rotulo, modulo, objeto, descricao, pipeline)`), `VERSAO_PADRAO = "V4"` e `carregar_workflow(chave)`, que importa a versão **sob demanda** com cache (`lru_cache`). Abrir a UI não instancia todas as versões.
-- `ui/components/sidebar.py`: descrição/pipeline da versão ativa e botão "Nova conversa" (key `nova_conversa`).
-- Todas as versões expõem `.run()` / `.print_response()` e são intercambiáveis.
+| Versão | Arquivo / objeto | Arquitetura | Saída |
+|---|---|---|---|
+| V1 | `agente_curador.py` / `agente_noticias` | Um agente com as 4 skills (via `get_skill_instructions`) | `output/V1` |
+| V2 | `agente_curador_v2.py` / `workflow` | 4 `passo_agente` sequenciais | `output/V2` |
+| V3 | `agente_curador_v3.py` / `news_curator_workflow` | Pesquisa → `Loop` de apuração (3 fontes, até 3x) → Verificação → Redação | `output/V3` |
+| V4 | `agente_curador_v4.py` / `research_pipeline_workflow` | Research Team (nacional + internacional) → Loop → `validar_fontes` → Verificação → Redação → `exportar_markdown` | `output/V4` |
+| **V5** | `agente_curador_v5.py` / `investor_workflow` | Research Team de mercado (Brasil + global) → Loop (até 2x) → Validação → Verificação **com dados de mercado** → **Analista de Investimentos** → `consolidar_para_redacao` (verificação + análise) → Redação → Exportação | `output/V5` |
+
+**Otimizações da V5 para o limite de tokens:**
+- cada agente recebe só o texto da sua skill nas instruções (`ler_skill`), sem `skills=` e sem a requisição extra de `get_skill_instructions`;
+- `LIMITES` de chamadas de ferramenta por papel (pesquisa 2, apuração 3, verificação 2, análise 3);
+- `MAX_TENTATIVAS_APURACAO = 2`.
+
+---
+
+## 7. Interface (chat)
+
+- `ui/app.py`:
+  - título "📈 Notícias para Investidores";
+  - `st.segmented_control` (key `versao`) para trocar a versão a qualquer momento;
+  - histórico em `st.session_state.mensagens` (`papel`, `conteudo`, `versao`);
+  - botões de sugestão (keys `sugestao_0..3`, via `tema_sugerido`);
+  - erros de exceção ou de `status` ERROR aparecem no chat com `mensagem_erro_amigavel`.
+- Painel de mercado na sidebar: `carregar_painel()` com `st.cache_data(ttl=900)` chama `obter_panorama` e `obter_indicadores` (métricas com variação do dia; Selic, CDI, IPCA e PTAX com data).
+- `ui/registry.py`: `VERSOES` (V5..V1 → `Versao(rotulo, modulo, objeto, descricao, pipeline)`), `VERSAO_PADRAO = "V5"` e `carregar_workflow` com `lru_cache` (import sob demanda).
 
 ---
 
@@ -147,29 +140,43 @@ pesquisa_step (Research Team)
 
 ```bash
 uv sync
-cp .env.example .env                        # e preencha GROQ_API_KEY
-uv run python -m agente.agente_curador_v4   # roda o exemplo "Quem é Gustavo Guanabara?"
+cp .env.example .env                          # GROQ_API_KEY
 uv run python -m streamlit run ui/app.py
-uv run python -m pytest                     # 36 testes, sem LLM, ~3 s
+uv run python -m agente.agente_curador_v5
+uv run python -m pytest                       # ~92 testes, ~3 s, sem rede
 ```
 
-- As versões devem ser executadas **como módulo** (`python -m agente.<arquivo>`) a partir da raiz, porque importam `agente.comum`.
-- Testes: `tests/conftest.py` define `GROQ_API_KEY` fictícia; `test_comum.py` (contagem de fontes, chave, caminhos), `test_skills.py` (frontmatter e contrato `## FONTES COLETADAS`), `test_versoes.py` (estrutura dos workflows V3/V4, loop, validação, slug, exportação, skills citadas existem), `test_ui.py` (AppTest com workflows falsos: chat, troca de versão, erro, nova conversa, chave ausente).
-- CI: `.github/workflows/testes.yml` roda `uv sync --locked` + `pytest` em push para `main`, PRs e manualmente.
-
-## 9. Windows e Smart App Control
-
-A máquina de desenvolvimento (Windows 11 Home) tem o **Smart App Control ativado**, que bloqueia binários sem assinatura digital:
-- o Python baixado pelo uv (python-build-standalone): `ImportError: DLL load failed while importing unicodedata/_socket: Uma política de Controle de Aplicativo bloqueou este arquivo`;
-- os executáveis gerados em `.venv\Scripts` (ex.: `streamlit.exe`): `os error 4551`.
-
-Solução adotada: usar o **Python oficial** (assinado pela PSF; instalado com `py install 3.13`), forçar o uv a usá-lo com `python-preference = "only-system"` e executar ferramentas sempre via **`python -m <ferramenta>`**. Se o `.venv` tiver sido criado com o Python do uv, apague-o e rode `uv sync` de novo.
+- As versões rodam **como módulo** a partir da raiz (`python -m agente.<arquivo>`).
+- Testes:
+  - `tests/conftest.py` define `GROQ_API_KEY` fictícia e um fixture **autouse** `mercado_simulado`, que substitui `_historico` e `_buscar_serie_bcb`. Nenhum teste acessa a rede.
+  - Cobertura: ferramentas de mercado (tickers, IR, simulação, cotação, indicadores, falhas), passos (erro real do Groq, mensagens), estrutura de V2 a V5, busca sem `duckduckgo` e com limite, skill injetada na V5, contratos das skills e UI (painel, sugestões, troca de versão, erros, nova conversa, chave ausente).
+- CI: `.github/workflows/testes.yml` (push na `main`, PRs, manual).
 
 ---
 
-## 10. Pontos em aberto
+## 9. Limites do Groq (plano gratuito)
 
-1. **Nenhuma versão foi executada ponta a ponta com o LLM** após a refatoração (os testes cobrem estrutura e lógica determinística). Validar a orquestração do `Team` e do `Loop` da V4 em uma execução real.
-2. Os testes não avaliam a **qualidade** das matérias; uma suíte opcional de avaliação com LLM (marcada e fora do CI) seria o próximo passo.
-3. Definições de agentes continuam repetidas entre versões — intencional, para que cada versão permaneça autocontida e comparável.
-4. Histórico git com várias mensagens de commit genéricas (`#`).
+- Na conta do projeto, todos os modelos de chat têm **≤ 8.000 tokens/minuto**: `gpt-oss-20b`, `gpt-oss-120b` e `qwen/qwen3.8-27b` com 8K, `allam-2-7b` com 6K (consultado em 09/11/2026). Uma requisição maior que isso falha com **413**; várias seguidas dão **429**.
+- Há também uma **cota diária de 200.000 tokens por modelo** (TPD). Algumas execuções completas consomem tudo. Quando acaba, `mensagem_erro_amigavel` informa quando libera; também dá para trocar `GROQ_MODEL_ID`, porque a cota é por modelo.
+- O `gpt-oss` às vezes gera chamadas de ferramenta inválidas (400 `tool_use_failed`, ex.: `web_search` com `{"id": url}`). `GroqTolerante` em `comum.py` repete essas chamadas (`retries=2`), e `criar_busca` instrui o uso do argumento `query`.
+- Cada chamada de ferramenta é uma nova requisição com todo o contexto, então um workflow completo leva **vários minutos**, a maior parte esperando a cota.
+- Mitigações: poucos resultados por busca, `tool_call_limit`, skill injetada (V5), retries do SDK e mensagens de erro claras. Para ganhar velocidade de verdade, use o plano Developer do Groq ou outro modelo/provedor.
+
+---
+
+## 10. Windows e Smart App Control
+
+A máquina de desenvolvimento (Windows 11 Home) tem o **Smart App Control ativado**, que bloqueia binários sem assinatura:
+- o Python baixado pelo uv: `DLL load failed while importing unicodedata/_socket: Uma política de Controle de Aplicativo bloqueou este arquivo`;
+- os `.exe` de `.venv\Scripts` (ex.: `streamlit.exe`): `os error 4551`.
+
+**Solução:** usar o Python oficial (assinado pela PSF, `py install 3.13`), `python-preference = "only-system"` e sempre `python -m <ferramenta>`. Se o `.venv` foi criado com o Python do uv, apague-o e rode `uv sync`.
+
+---
+
+## 11. Pontos em aberto
+
+1. Execuções ponta a ponta com LLM são lentas no plano gratuito (§9). Considerar streaming de progresso por etapa na UI.
+2. Fundos de investimento tradicionais (dados da CVM) ainda não têm ferramenta própria; FIIs e ETFs são cobertos pelo `cotacao_ativo`.
+3. Os testes não avaliam a qualidade das matérias. Uma suíte opcional de avaliação com LLM (fora do CI) seria o próximo passo.
+4. Agentes são definidos por versão de propósito (comparabilidade); o compartilhado fica em `comum.py`, `passos.py` e `ferramentas_mercado.py`.

@@ -1,69 +1,44 @@
 ---
 name: apuracao-fontes
-description: Apurar e cruzar múltiplas fontes jornalísticas sobre uma notícia, montando um dossiê estruturado com evidências, linha do tempo, consensos, contradições e lacunas. Use quando precisar investigar fontes, cruzar informações de veículos diferentes ou montar dossiê de evidências sobre uma notícia.
+description: Apurar e cruzar múltiplas fontes sobre uma notícia, com ênfase em mercado financeiro (cotações, resultados, fatos relevantes, decisões de juros), montando um dossiê com fontes, linha do tempo, números-chave, consensos, contradições e lacunas. Use para investigar e cruzar fontes de uma notícia.
 metadata:
-  version: "1.0.0"
-  tags: ["jornalismo", "apuracao", "fontes", "dossie"]
+  version: "2.0.0"
+  tags: ["jornalismo", "apuracao", "fontes", "dossie", "mercado-financeiro"]
 ---
 
-# Apuração de Fontes Jornalísticas
+# Apuração de Fontes
 
-Workflow para investigar uma notícia em múltiplas fontes e produzir um dossiê estruturado de evidências.
+Investigue a notícia em múltiplas fontes e produza um dossiê de evidências.
 
-## Quando usar
-
-- Recebeu uma notícia e precisa verificar em outras fontes
-- Precisa montar um dossiê de evidências sobre um assunto
-- Quer cruzar informações de diferentes veículos
-
-## Entrada esperada
-
-- Título ou resumo da notícia a ser apurada
-- Palavras-chave para busca (opcional — se não fornecidas, extraia do título)
+## Entrada
+Título/resumo da notícia, ativos envolvidos e palavras-chave.
 
 ## Processo
-
-1. **Buscar fontes**: use as palavras-chave para buscar a mesma notícia em diferentes veículos (mínimo 3, ideal 5)
-2. **Extrair fatos**: para cada fonte, registre dados, números, nomes e citações diretas
-3. **Cruzar informações**: identifique consensos, contradições e exclusividades
-4. **Montar dossiê**: produza o documento estruturado no formato abaixo
+1. Busque a mesma notícia em veículos diferentes (mínimo 3, ideal 5), em português e inglês.
+2. Em temas financeiros, procure também a fonte primária: fato relevante/comunicado (CVM, RI da empresa), ata/comunicado do Copom (Banco Central), dados da B3 ou do Tesouro.
+3. Registre números exatos: preços, variações %, lucros, receitas, taxas, prazos, datas.
+4. Cruze as informações: consensos, contradições, exclusividades.
 
 ## Formato de saída
-
-Produza o dossiê exatamente nesta estrutura:
-
 ```
 ## FONTES COLETADAS
+- **Nome do Veículo**: Título da matéria (URL completa) — data
+  Fatos e números reportados por essa fonte
 
-Para cada fonte encontrada:
-- **Veículo** | URL | Data/hora de publicação
-- Fatos reportados (dados, números, nomes, citações diretas)
-- Informação exclusiva dessa fonte (o que só ela traz)
+## NÚMEROS-CHAVE
+Valores relevantes com a fonte entre colchetes. Ex.: "Lucro líquido de R$ 20,1 bi no 3T [Valor]"
 
 ## LINHA DO TEMPO
-
-Eventos em ordem cronológica com a fonte entre colchetes.
-Ex: "10h — Governo anuncia medida X [Folha] [Reuters]"
+Eventos em ordem cronológica com a fonte.
 
 ## PONTOS DE CONSENSO
-
-Fatos que TODAS ou a maioria das fontes confirmam.
-
 ## CONTRADIÇÕES E DIVERGÊNCIAS
-
-Dados que diferem entre fontes. Seja específico:
-- Ex: "Folha diz R$ 2,5 bi; Estadão diz R$ 2,8 bi; Reuters diz USD 500 mi"
-- Ex: "G1 afirma que a decisão foi unânime; Valor diz que houve 2 votos contrários"
-
+Seja específico: "InfoMoney diz alta de 3,2%; Reuters diz 2,9%".
 ## LACUNAS
-
-O que nenhuma fonte esclareceu ou o que falta confirmar.
 ```
 
 ## Regras
-
-- Mínimo de **3 fontes**, ideal **5 ou mais**
-- Priorize veículos de credibilidade reconhecida (Reuters, AP, AFP, grandes jornais)
-- Nunca invente dados — registre apenas o que as fontes efetivamente publicaram
-- Seja específico nas contradições: cite valores, nomes e datas exatos de cada fonte
-- Inclua a URL de cada fonte sempre que disponível
+- O nome do veículo vai SEMPRE em **negrito** com a URL completa (formato acima).
+- Priorize veículos especializados e fontes oficiais.
+- Nunca invente dados; registre só o que as fontes publicaram.
+- No máximo 4 buscas.

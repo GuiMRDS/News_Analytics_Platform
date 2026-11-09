@@ -1,7 +1,7 @@
 from agno.agent import Agent
-from agno.tools.duckduckgo import DuckDuckGoTools
 
 from agente.comum import (
+    criar_busca,
     carregar_skills,
     criar_file_tools,
     criar_modelo,
@@ -48,7 +48,7 @@ agente_noticias = Agent(
         "As etapas 1, 2 e 3 são seu processo interno de trabalho.",
         "Salve o documento final em um arquivo .md usando a ferramenta save_file.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )

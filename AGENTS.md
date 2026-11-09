@@ -1,68 +1,73 @@
 # AGENTS.md
 
-Instruções para agentes de código (Claude Code, Codex, Cursor etc.) que trabalham neste repositório. Leia também [CONTEXT.md](CONTEXT.md) para o contexto completo do projeto.
+Instruções para agentes de código (Claude Code, Codex, Cursor etc.) que trabalham neste repositório. Leia também [CONTEXT.md](CONTEXT.md) para o contexto completo.
 
 ## Resumo do projeto
 
-Curadoria de notícias com IA: dado um tema, uma cadeia de agentes **Agno** (LLM Groq `openai/gpt-oss-20b` + busca DuckDuckGo) pesquisa, apura fontes, verifica fatos e redige uma matéria jornalística em Markdown. Cada versão em `agente/` é uma arquitetura diferente: V1 monolítica, V2 workflow sequencial, V3 workflow com `Loop` de apuração, V4 com Research Team (`Team`), validação de fontes e exportação determinística. A UI Streamlit em `ui/` permite escolher a versão.
+Plataforma de notícias **para investidores** (ações, renda fixa, renda variável, fundos, câmbio, cripto, economia; outros temas também são aceitos). Agentes **Agno** + Groq pesquisam, apuram, checam fatos, cruzam com **dados reais de mercado** (yfinance + Banco Central) e redigem a matéria. As versões V1 a V5 em `agente/` são arquiteturas diferentes; a **V5 — Investidor** é a principal. A UI Streamlit é um chat com seletor de versão e painel de mercado.
 
 ## Setup e comandos
 
 ```bash
-uv sync                                    # instala dependências (Python 3.12/3.13 do sistema)
-cp .env.example .env                       # preencher GROQ_API_KEY
-uv run python -m pytest                    # testes (sem LLM, ~3 s); rode antes de concluir qualquer mudança
-uv run python -m agente.agente_curador_v4  # executa o pipeline V4 com o tema de exemplo
-uv run python -m streamlit run ui/app.py   # interface de chat
+uv sync                                     # Python 3.12/3.13 do sistema
+cp .env.example .env                        # GROQ_API_KEY
+uv run python -m pytest                     # ~3 s, sem rede: rode antes de concluir qualquer mudança
+uv run python -m streamlit run ui/app.py    # interface
+uv run python -m agente.agente_curador_v5   # V5 no terminal
 ```
 
-- Rode as versões **como módulo a partir da raiz** (`python -m agente.<arquivo>`); `python agente/arquivo.py` falha porque o import de `agente.comum` depende do pacote.
+- Rode as versões **como módulo a partir da raiz** (`python -m agente.<arquivo>`).
 - **Nunca** commite o `.env` nem imprima a chave.
-- Rodar os agentes faz chamadas reais à API do Groq e buscas na web (custo/rate limit). Não execute pipelines completos sem necessidade; prefira validar com `python -m py_compile` ou testando funções puras.
-- **Testes:** `tests/` com pytest; CI em `.github/workflows/testes.yml`. Toda lógica nova deve ter teste que **não chame o LLM nem a web** (`conftest.py` já define `GROQ_API_KEY` fictícia). Para a UI use `streamlit.testing.v1.AppTest` e substitua `registry.carregar_workflow` por um workflow falso via `monkeypatch`.
-- **Windows / Smart App Control:** a máquina bloqueia binários sem assinatura. Nunca use o Python gerenciado pelo uv (o `pyproject.toml` fixa `python-preference = "only-system"`) e chame ferramentas via `python -m` (`python -m streamlit`, `python -m pytest`), não pelos `.exe` de `.venv\Scripts`. O erro `Uma política de Controle de Aplicativo bloqueou este arquivo` tem essa causa; não é bug do projeto.
+- **Windows / Smart App Control:** nunca use o Python gerenciado pelo uv (`python-preference = "only-system"`) e chame ferramentas via `python -m` (não pelos `.exe` de `.venv\Scripts`). O erro `Uma política de Controle de Aplicativo bloqueou este arquivo` tem essa causa; não é bug do projeto.
+- **Custo:** rodar agentes chama a API do Groq (plano gratuito: 8.000 tokens/minuto por modelo) e faz buscas reais. Um workflow completo leva minutos. Só execute ponta a ponta quando necessário; prefira testes.
 
 ## Mapa do código
 
 | Caminho | Função |
 |---|---|
-| `agente/comum.py` | Caminhos (`BASE_DIR`, `SKILLS_DIR`, `OUTPUT_DIR`), `criar_modelo`, `carregar_skills`, `criar_file_tools`, `diretorio_saida`, `verificar_api_key`, `contar_fontes` |
-| `agente/agente_curador.py` | V1 — `agente_noticias` |
-| `agente/agente_curador_v2.py` | V2 — `workflow` |
-| `agente/agente_curador_v3.py` | V3 — `news_curator_workflow` |
-| `agente/agente_curador_v4.py` | V4 — `research_pipeline_workflow`, `research_team`, `validar_fontes`, `exportar_markdown` |
-| `skills/<nome>/SKILL.md` | Instruções de cada etapa, carregadas via `LocalSkills` |
-| `ui/registry.py` | `VERSOES`, `VERSAO_PADRAO`, `carregar_workflow` (import sob demanda) |
-| `ui/app.py`, `ui/components/` | App Streamlit em formato de chat com seletor de versão |
-| `tests/` | Testes pytest (comum, skills, versões, UI) |
+| `agente/comum.py` | `criar_modelo`, `criar_busca`, `carregar_skills`, `ler_skill`, caminhos, `contar_fontes`, `mensagem_erro_amigavel`, limites |
+| `agente/passos.py` | `passo_agente` (expõe o erro real), `validar_fontes`, `exportar_markdown`, `slug`, `criar_condicao_fontes` |
+| `agente/ferramentas_mercado.py` | `MercadoFinanceiroTools` e funções `obter_cotacao`/`obter_indicadores`/`obter_panorama`/`simular_renda_fixa` |
+| `agente/agente_curador*.py` | V1 `agente_noticias`, V2 `workflow`, V3 `news_curator_workflow`, V4 `research_pipeline_workflow`, V5 `investor_workflow` |
+| `skills/<nome>/SKILL.md` | pesquisa-noticias, apuracao-fontes, verificacao-factual, analise-mercado, redacao-jornalistica |
+| `ui/registry.py` | `VERSOES`, `VERSAO_PADRAO`, `carregar_workflow` (lazy) |
+| `ui/app.py`, `ui/components/sidebar.py` | Chat, sugestões, painel de mercado |
+| `tests/` | pytest; `conftest.py` simula o mercado (autouse) |
 
 ## Convenções
 
-- **Idioma:** domínio, prompts, skills, nomes de variáveis e mensagens em **português brasileiro**.
-- **Versionamento por arquivo:** cada nova arquitetura é um novo `agente/agente_curador_vN.py`. Não transforme versões antigas na nova — elas existem para comparação. Correções de bug nelas são bem-vindas.
-- **Use `agente/comum.py`** para modelo, skills, caminhos e saída; não recrie `Groq(...)`, `Path(__file__)...` ou `load_dotenv` nos módulos de versão. Cada versão grava em `output/VN` (`criar_file_tools("VN")` ou `diretorio_saida("VN")`).
-- **Registrar na UI:** toda nova versão deve exportar um objeto com `.run()` / `.print_response()` e ganhar uma entrada `Versao(...)` em `VERSOES` (`ui/registry.py`); os testes de UI verificam automaticamente que ela carrega. Adicione também testes de estrutura em `tests/test_versoes.py`.
+- **Idioma:** português brasileiro em domínio, prompts, skills, variáveis e mensagens.
+- **Versionamento por arquivo:** uma nova arquitetura é um novo `agente/agente_curador_vN.py`. Não transforme versões antigas na nova; correções de bug nelas são bem-vindas.
+- **Use os módulos compartilhados:** nada de `Groq(...)`, `DuckDuckGoTools`, `load_dotenv` ou `Path(__file__)` nos módulos de versão.
+  - **Busca:** sempre `criar_busca()`. O backend `duckduckgo` está quebrado e os resultados precisam ser limitados por causa dos tokens.
+  - **Agentes em workflow:** sempre `passo_agente(...)`, nunca `Step(agent=...)` ou um agente solto em `steps=`. O Agno 2.4.8 esconde o erro real atrás de `parent_run_id`.
+  - **Agentes com ferramentas:** defina `tool_call_limit`.
+- **Orçamento de tokens:** toda requisição precisa caber em 8.000 tokens. Prefira injetar só a skill necessária (`ler_skill`, padrão da V5), limitar resultados e chamadas de ferramenta, e preferir passos determinísticos (`Step(executor=...)`) para regras verificáveis (contagem de fontes, consolidação, gravação de arquivos).
+- **Dados de mercado:** números vêm das ferramentas (yfinance/BCB), nunca do LLM. Novas fontes vão em `ferramentas_mercado.py` com acesso a rede isolado em funções `_privadas` (para o fixture de testes simular), retornando `{"erro": ...}` em vez de levantar exceção.
+- **Registrar na UI:** nova versão → entrada `Versao(...)` em `VERSOES`, mais testes de estrutura em `tests/test_versoes.py`.
 - **`__main__`:** chame `verificar_api_key()` antes de executar.
-- **Constantes** (`MIN_FONTES`, `MAX_TENTATIVAS_APURACAO`) em maiúsculas no topo do módulo e interpoladas nas instruções com f-strings, para manter prompt e código sincronizados.
-- **Agentes:** `Agent(name=..., model=criar_modelo(), skills=shared_skills, instructions=[...], tools=[...], add_datetime_to_context=True, markdown=True)`. As instruções devem pedir para carregar a skill com `get_skill_instructions` antes de executar.
-- **Prefira passos determinísticos** (`Step(executor=funcao)`) para regras verificáveis em código — contagem de fontes, gravação de arquivos — em vez de confiar no LLM (padrão da V4).
-- **Commits:** mensagens descritivas (evite `#`). Não commitar `.venv/`, `output/`, `.env`.
+- **Commits:** mensagens descritivas (evite `#`); não commitar `.venv/`, `output/`, `.env`.
 
 ## Skills
 
-- Formato: `skills/<nome-kebab-case>/SKILL.md` com frontmatter YAML (`name`, `description`, `metadata.version`, `metadata.tags`) seguido de: Quando usar / Entrada esperada / Processo / Formato de saída / Regras.
-- O `name` no frontmatter deve ser igual ao nome da pasta e ao nome usado nas instruções dos agentes.
-- **Os cabeçalhos de saída são contrato.** `contar_fontes` procura `## FONTES COLETADAS`, veículos em `**negrito**` e URLs; a V4 injeta `## VALIDAÇÃO DE FONTES`. Ao alterar o formato de uma skill, atualize o parsing e as instruções dos agentes, e vice-versa.
+- Formato: `skills/<nome-kebab-case>/SKILL.md` com frontmatter (`name` = nome da pasta, `description`, `metadata.version`, `metadata.tags`).
+- Mantenha as skills **enxutas**: o texto delas entra no prompt e consome cota de tokens.
+- **Os cabeçalhos de saída são contrato:** `contar_fontes` lê `## FONTES COLETADAS` com `**Veículo**` e URLs; a V4/V5 injeta `## VALIDAÇÃO DE FONTES`; a V5 consolida `# RELATÓRIO DE VERIFICAÇÃO` + `# ANÁLISE DE MERCADO`. A skill `analise-mercado` cita ferramentas pelo nome, e um teste garante que elas existem. Ao mudar um formato, atualize código, instruções e testes juntos.
 - Ao mudar uma skill, incremente `metadata.version`.
 
 ## Regras editoriais (não negociáveis)
 
-Qualquer alteração em prompts ou skills deve preservar:
-- Nunca inventar dados, nomes ou citações.
-- Mínimo de 3 fontes distintas, com veículo e URL.
-- Classificação CONFIRMADO / DISPUTADO / NÃO VERIFICADO na verificação factual.
-- Matéria de 400–600 palavras, em parágrafos (sem bullets no corpo), imparcial, com citações `[n]` e seção `## Referências` consistente.
+- Nunca inventar dados, cotações, nomes ou citações.
+- **Nunca recomendar compra ou venda**; matérias financeiras terminam com "_Conteúdo informativo; não constitui recomendação de investimento._"
+- No mínimo 3 fontes distintas, com veículo e URL; priorizar veículos especializados e fontes oficiais (B3, CVM, BCB).
+- Classificação CONFIRMADO / DISPUTADO / NÃO VERIFICADO.
+- Matéria em parágrafos (sem bullets no corpo), citações `[n]` consistentes com `## Referências`, seção "O que isso significa para o investidor" em temas financeiros.
+
+## Testes
+
+- Nenhum teste pode chamar o LLM, a web ou as APIs de mercado. O `conftest.py` já simula `_historico` e `_buscar_serie_bcb` e define uma chave fictícia.
+- UI: `streamlit.testing.v1.AppTest`, substituindo `registry.carregar_workflow` por um workflow falso via `monkeypatch`.
 
 ## Manutenção da documentação
 
-Ao mudar arquitetura, versões, comandos ou contratos de skills, atualize `CONTEXT.md`, este arquivo e o `README.md`.
+Ao mudar arquitetura, versões, comandos, limites ou contratos de skills, atualize `CONTEXT.md`, este arquivo e o `README.md`.

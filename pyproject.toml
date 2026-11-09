@@ -1,7 +1,7 @@
 [project]
 name = "news-curator"
 version = "0.1.0"
-description = "Curadoria de notícias com agentes de IA (Agno + Groq): pesquisa, apuração, verificação factual e redação."
+description = "Plataforma de notícias para investidores com agentes de IA (Agno + Groq): pesquisa, apuração, verificação factual, dados reais de mercado e redação."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
     "groq>=1.7.0",
     "python-dotenv>=1.2.3",
     "streamlit>=1.63.0",
+    "yfinance>=1.8.0",
 ]
 
 [tool.uv]

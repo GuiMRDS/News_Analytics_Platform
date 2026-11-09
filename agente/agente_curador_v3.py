@@ -1,11 +1,12 @@
 from typing import List
 
 from agno.agent import Agent
-from agno.tools.duckduckgo import DuckDuckGoTools
-from agno.workflow import Workflow, Step, Loop
+from agno.workflow import Workflow, Loop
 from agno.workflow.types import StepOutput
 
+from agente.passos import passo_agente
 from agente.comum import (
+    criar_busca,
     carregar_skills,
     contar_fontes,
     criar_file_tools,
@@ -30,7 +31,7 @@ pesquisador = Agent(
         "Execute a skill 'pesquisa-noticias' e retorne exatamente no formato definido nela.",
         "Salve o resultado da pesquisa em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -51,7 +52,7 @@ apurador = Agent(
         "Pesquise em inglês e português para ampliar o alcance de fontes.",
         "Salve o resultado da apuração em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -66,7 +67,7 @@ verificador = Agent(
         "Receba o dossiê do apurador e execute a skill 'verificacao-factual'.",
         "Salve o resultado da verificação em um arquivo usando a ferramenta de arquivos.",
     ],
-    tools=[DuckDuckGoTools(), file_tools],
+    tools=[criar_busca(), file_tools],
     add_datetime_to_context=True,
     markdown=True,
 )
@@ -124,17 +125,9 @@ def fontes_suficientes(outputs: List[StepOutput]) -> bool:
 
 
 
-pesquisa_step = Step(
-    name="pesquisa",
-    description="Pesquisa de notícias sobre o tema",
-    agent=pesquisador,
-)
+pesquisa_step = passo_agente("pesquisa", pesquisador, "Pesquisa de notícias sobre o tema")
 
-apuracao_step = Step(
-    name="apuracao",
-    description="Apuração multi-fonte com verificação de fontes",
-    agent=apurador,
-)
+apuracao_step = passo_agente("apuracao", apurador, "Apuração multi-fonte com verificação de fontes")
 
 apuracao_loop = Loop(
     name="apuracao_loop",
@@ -144,17 +137,9 @@ apuracao_loop = Loop(
     end_condition=fontes_suficientes,
 )
 
-verificacao_step = Step(
-    name="verificacao",
-    description="Verificação factual do dossiê",
-    agent=verificador,
-)
+verificacao_step = passo_agente("verificacao", verificador, "Verificação factual do dossiê")
 
-redacao_step = Step(
-    name="redacao",
-    description="Redação jornalística final",
-    agent=redator,
-)
+redacao_step = passo_agente("redacao", redator, "Redação jornalística final")
 
 
 news_curator_workflow = Workflow(
