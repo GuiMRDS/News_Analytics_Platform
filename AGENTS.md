@@ -9,17 +9,18 @@ Curadoria de notícias com IA: dado um tema, uma cadeia de agentes **Agno** (LLM
 ## Setup e comandos
 
 ```bash
-uv sync                                    # instala dependências (Python 3.12.11)
+uv sync                                    # instala dependências (Python 3.12/3.13 do sistema)
 cp .env.example .env                       # preencher GROQ_API_KEY
+uv run python -m pytest                    # testes (sem LLM, ~3 s); rode antes de concluir qualquer mudança
 uv run python -m agente.agente_curador_v4  # executa o pipeline V4 com o tema de exemplo
-uv run streamlit run ui/app.py             # interface web
+uv run python -m streamlit run ui/app.py   # interface de chat
 ```
 
 - Rode as versões **como módulo a partir da raiz** (`python -m agente.<arquivo>`); `python agente/arquivo.py` falha porque o import de `agente.comum` depende do pacote.
 - **Nunca** commite o `.env` nem imprima a chave.
 - Rodar os agentes faz chamadas reais à API do Groq e buscas na web (custo/rate limit). Não execute pipelines completos sem necessidade; prefira validar com `python -m py_compile` ou testando funções puras.
-- Não há suíte de testes. Ao adicionar lógica pura (ex.: `contar_fontes`, `validar_fontes`), crie testes `pytest` que não chamem o LLM.
-- Nesta máquina Windows, o Python do uv pode ser bloqueado pelo Controle de Aplicativo (`ImportError: DLL load failed while importing _socket`). Se ocorrer, não é bug do projeto — reporte ao usuário.
+- **Testes:** `tests/` com pytest; CI em `.github/workflows/testes.yml`. Toda lógica nova deve ter teste que **não chame o LLM nem a web** (`conftest.py` já define `GROQ_API_KEY` fictícia). Para a UI use `streamlit.testing.v1.AppTest` e substitua `registry.carregar_workflow` por um workflow falso via `monkeypatch`.
+- **Windows / Smart App Control:** a máquina bloqueia binários sem assinatura. Nunca use o Python gerenciado pelo uv (o `pyproject.toml` fixa `python-preference = "only-system"`) e chame ferramentas via `python -m` (`python -m streamlit`, `python -m pytest`), não pelos `.exe` de `.venv\Scripts`. O erro `Uma política de Controle de Aplicativo bloqueou este arquivo` tem essa causa; não é bug do projeto.
 
 ## Mapa do código
 
@@ -31,15 +32,16 @@ uv run streamlit run ui/app.py             # interface web
 | `agente/agente_curador_v3.py` | V3 — `news_curator_workflow` |
 | `agente/agente_curador_v4.py` | V4 — `research_pipeline_workflow`, `research_team`, `validar_fontes`, `exportar_markdown` |
 | `skills/<nome>/SKILL.md` | Instruções de cada etapa, carregadas via `LocalSkills` |
-| `ui/registry.py` | Registro das versões exibidas na UI |
-| `ui/app.py`, `ui/components/` | App Streamlit |
+| `ui/registry.py` | `VERSOES`, `VERSAO_PADRAO`, `carregar_workflow` (import sob demanda) |
+| `ui/app.py`, `ui/components/` | App Streamlit em formato de chat com seletor de versão |
+| `tests/` | Testes pytest (comum, skills, versões, UI) |
 
 ## Convenções
 
 - **Idioma:** domínio, prompts, skills, nomes de variáveis e mensagens em **português brasileiro**.
 - **Versionamento por arquivo:** cada nova arquitetura é um novo `agente/agente_curador_vN.py`. Não transforme versões antigas na nova — elas existem para comparação. Correções de bug nelas são bem-vindas.
 - **Use `agente/comum.py`** para modelo, skills, caminhos e saída; não recrie `Groq(...)`, `Path(__file__)...` ou `load_dotenv` nos módulos de versão. Cada versão grava em `output/VN` (`criar_file_tools("VN")` ou `diretorio_saida("VN")`).
-- **Registrar na UI:** toda nova versão deve exportar um objeto com `.run()` / `.print_response()` e ser adicionada a `WORKFLOWS` em `ui/registry.py`.
+- **Registrar na UI:** toda nova versão deve exportar um objeto com `.run()` / `.print_response()` e ganhar uma entrada `Versao(...)` em `VERSOES` (`ui/registry.py`); os testes de UI verificam automaticamente que ela carrega. Adicione também testes de estrutura em `tests/test_versoes.py`.
 - **`__main__`:** chame `verificar_api_key()` antes de executar.
 - **Constantes** (`MIN_FONTES`, `MAX_TENTATIVAS_APURACAO`) em maiúsculas no topo do módulo e interpoladas nas instruções com f-strings, para manter prompt e código sincronizados.
 - **Agentes:** `Agent(name=..., model=criar_modelo(), skills=shared_skills, instructions=[...], tools=[...], add_datetime_to_context=True, markdown=True)`. As instruções devem pedir para carregar a skill com `get_skill_instructions` antes de executar.

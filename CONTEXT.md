@@ -21,13 +21,14 @@ O projeto é também um laboratório de **engenharia de agentes**: cada versão 
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem | Python **3.12.11** (fixado em `pyproject.toml`) |
+| Linguagem | Python **3.12–3.13** (`>=3.12,<3.14`; `.python-version` = 3.13). Somente Python **do sistema** (`[tool.uv] python-preference = "only-system"`), ver §9 |
 | Gerenciador de pacotes | `uv` (`uv.lock` versionado) |
 | Framework de agentes | `agno==2.4.8` (`Agent`, `Team`, `Workflow`, `Step`, `Loop`, `Skills`, `LocalSkills`) |
 | LLM | Groq, modelo `openai/gpt-oss-20b` |
 | Busca | `DuckDuckGoTools` do Agno (`ddgs`, `duckduckgo-search`) |
 | Persistência | Arquivos Markdown em `output/<versão>/` |
-| Interface | Streamlit |
+| Interface | Streamlit (chat) |
+| Testes | `pytest` + `streamlit.testing.v1.AppTest`; CI no GitHub Actions |
 | Configuração | `.env` na raiz com `GROQ_API_KEY` (modelo em `.env.example`), carregado via `python-dotenv` |
 
 ---
@@ -50,10 +51,13 @@ News_Analytics_Platform/
 │   └── redacao-jornalistica/
 ├── ui/
 │   ├── app.py                  # App Streamlit
-│   ├── registry.py             # Mapa "nome da versão" -> agente/workflow
-│   └── components/sidebar.py   # Seletor de versão
+│   ├── registry.py             # VERSOES + carregar_workflow (import sob demanda)
+│   └── components/sidebar.py   # Detalhes da versão + botão "Nova conversa"
+├── tests/                      # pytest (sem LLM): comum, skills, versões, UI
+├── .github/workflows/testes.yml  # CI: pytest em Ubuntu/Windows × Python 3.12/3.13
 ├── output/                     # gerado em runtime (ignorado pelo git)
 ├── .env.example
+├── .python-version             # 3.13
 ├── pyproject.toml / uv.lock
 └── README.md
 ```
@@ -129,31 +133,43 @@ pesquisa_step (Research Team)
 
 ---
 
-## 7. Interface Streamlit
+## 7. Interface Streamlit (chat)
 
-- `ui/app.py` insere a raiz do repositório no `sys.path` **antes** de importar `registry`/`agente`, mostra erro e para se a `GROQ_API_KEY` não estiver configurada, lê o tema, chama `workflow.run(tema)` e exibe `resultado.content`.
-- `ui/registry.py` monta `WORKFLOWS` (V4 primeiro, como padrão; depois V3, V2, V1).
-- `ui/components/sidebar.py` renderiza o `selectbox` com as versões.
+- `ui/app.py`: interface de **chat** (`st.chat_input` / `st.chat_message`). Um `st.segmented_control` (key `versao`) acima da conversa permite **trocar a versão dos agentes a qualquer momento**; cada resposta mostra a versão que a gerou. O histórico fica em `st.session_state.mensagens` (`{"papel", "conteudo", "versao"}`). Erros do workflow aparecem como mensagem no chat, sem derrubar a página. Sem `GROQ_API_KEY`, mostra erro e para.
+- `ui/app.py` insere a raiz e `ui/` no `sys.path` **antes** de importar `registry`/`agente`.
+- `ui/registry.py`: `VERSOES` (chave `V1`..`V4` → `Versao(rotulo, modulo, objeto, descricao, pipeline)`), `VERSAO_PADRAO = "V4"` e `carregar_workflow(chave)`, que importa a versão **sob demanda** com cache (`lru_cache`). Abrir a UI não instancia todas as versões.
+- `ui/components/sidebar.py`: descrição/pipeline da versão ativa e botão "Nova conversa" (key `nova_conversa`).
 - Todas as versões expõem `.run()` / `.print_response()` e são intercambiáveis.
 
 ---
 
-## 8. Execução
+## 8. Execução e testes
 
 ```bash
 uv sync
-cp .env.example .env                       # e preencha GROQ_API_KEY
-uv run python -m agente.agente_curador_v4  # roda o exemplo "Quem é Gustavo Guanabara?"
-uv run streamlit run ui/app.py
+cp .env.example .env                        # e preencha GROQ_API_KEY
+uv run python -m agente.agente_curador_v4   # roda o exemplo "Quem é Gustavo Guanabara?"
+uv run python -m streamlit run ui/app.py
+uv run python -m pytest                     # 36 testes, sem LLM, ~3 s
 ```
 
-As versões devem ser executadas **como módulo** (`python -m agente.<arquivo>`) a partir da raiz, porque importam `agente.comum`.
+- As versões devem ser executadas **como módulo** (`python -m agente.<arquivo>`) a partir da raiz, porque importam `agente.comum`.
+- Testes: `tests/conftest.py` define `GROQ_API_KEY` fictícia; `test_comum.py` (contagem de fontes, chave, caminhos), `test_skills.py` (frontmatter e contrato `## FONTES COLETADAS`), `test_versoes.py` (estrutura dos workflows V3/V4, loop, validação, slug, exportação, skills citadas existem), `test_ui.py` (AppTest com workflows falsos: chat, troca de versão, erro, nova conversa, chave ausente).
+- CI: `.github/workflows/testes.yml` roda `uv sync --locked` + `pytest` em push para `main`, PRs e manualmente.
+
+## 9. Windows e Smart App Control
+
+A máquina de desenvolvimento (Windows 11 Home) tem o **Smart App Control ativado**, que bloqueia binários sem assinatura digital:
+- o Python baixado pelo uv (python-build-standalone): `ImportError: DLL load failed while importing unicodedata/_socket: Uma política de Controle de Aplicativo bloqueou este arquivo`;
+- os executáveis gerados em `.venv\Scripts` (ex.: `streamlit.exe`): `os error 4551`.
+
+Solução adotada: usar o **Python oficial** (assinado pela PSF; instalado com `py install 3.13`), forçar o uv a usá-lo com `python-preference = "only-system"` e executar ferramentas sempre via **`python -m <ferramenta>`**. Se o `.venv` tiver sido criado com o Python do uv, apague-o e rode `uv sync` de novo.
 
 ---
 
-## 9. Pontos em aberto
+## 10. Pontos em aberto
 
-1. **Sem testes automatizados nem CI.** Bons candidatos: `contar_fontes`, `validar_fontes`, `_slug`, `exportar_markdown` (lógica pura, sem LLM).
-2. **V4 não foi executada ponta a ponta** após a criação (apenas compilada): o Python instalado pelo uv estava bloqueado pela política de Controle de Aplicativo do Windows (`_socket` DLL). Validar a orquestração do `Team` e do `Loop` em uma execução real.
+1. **Nenhuma versão foi executada ponta a ponta com o LLM** após a refatoração (os testes cobrem estrutura e lógica determinística). Validar a orquestração do `Team` e do `Loop` da V4 em uma execução real.
+2. Os testes não avaliam a **qualidade** das matérias; uma suíte opcional de avaliação com LLM (marcada e fora do CI) seria o próximo passo.
 3. Definições de agentes continuam repetidas entre versões — intencional, para que cada versão permaneça autocontida e comparável.
 4. Histórico git com várias mensagens de commit genéricas (`#`).

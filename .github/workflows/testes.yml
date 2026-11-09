@@ -1,0 +1,37 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+
+    env:
+      # Chave fictícia: os testes não chamam a API do Groq.
+      GROQ_API_KEY: chave-de-teste
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # O projeto usa python-preference = "only-system", então o Python
+      # precisa vir do sistema (setup-python), não do uv.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Instalar dependências
+        run: uv sync --locked --python ${{ matrix.python-version }}
+
+      - name: Rodar testes
+        run: uv run --python ${{ matrix.python-version }} python -m pytest -v

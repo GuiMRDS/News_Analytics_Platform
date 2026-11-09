@@ -203,7 +203,7 @@ Isso permite:
 
 ### Linguagem
 
-- Python 3.12.11
+- Python 3.12 ou 3.13 (oficial, python.org / Python Install Manager)
 
 ### Framework de Agentes
 
@@ -260,6 +260,8 @@ News_Analytics_Platform/
 │   ├── registry.py
 │   └── components/
 │
+├── tests/                   # pytest (sem chamadas ao LLM)
+├── .github/workflows/       # CI: testes automáticos
 └── README.md
 ```
 
@@ -284,6 +286,8 @@ Instale as dependências:
 ```bash
 uv sync
 ```
+
+> **Windows com Smart App Control:** o Windows bloqueia o Python baixado pelo uv e os executáveis gerados em `.venv\Scripts` (`DLL load failed ... Uma política de Controle de Aplicativo bloqueou este arquivo`). Por isso o projeto está configurado com `python-preference = "only-system"`. Instale o Python oficial (`py install 3.13` ou python.org), rode `uv sync` e execute ferramentas sempre via `python -m` (ex.: `python -m streamlit`, `python -m pytest`).
 
 ---
 
@@ -327,8 +331,20 @@ research_pipeline_workflow.print_response(
 ## Interface Streamlit
 
 ```bash
-uv run streamlit run ui/app.py
+uv run python -m streamlit run ui/app.py
 ```
+
+A interface é um chat: escolha a versão dos agentes (V1–V4) no seletor acima da conversa — dá para trocar a qualquer momento, e cada resposta mostra qual versão a gerou.
+
+---
+
+## Testes
+
+```bash
+uv run python -m pytest
+```
+
+Os testes não chamam o LLM nem a web (usam chave fictícia e workflows falsos) e rodam automaticamente no GitHub Actions a cada push/PR (`.github/workflows/testes.yml`).
 
 ---
 

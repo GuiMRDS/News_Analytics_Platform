@@ -3,12 +3,28 @@ name = "news-curator"
 version = "0.1.0"
 description = "Curadoria de notícias com agentes de IA (Agno + Groq): pesquisa, apuração, verificação factual e redação."
 readme = "README.md"
-requires-python = "==3.12.11"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "agno==2.4.8",
     "ddgs==9.10.0",
     "duckduckgo-search==8.1.1",
+    "fastapi==0.129.0",
     "groq>=1.7.0",
     "python-dotenv>=1.2.3",
     "streamlit>=1.63.0",
+]
+
+[tool.uv]
+# O Smart App Control do Windows bloqueia o Python baixado pelo uv (DLLs sem
+# assinatura). Use apenas Pythons instalados no sistema (python.org / py install).
+python-preference = "only-system"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "ui"]
+addopts = "-q"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
 ]

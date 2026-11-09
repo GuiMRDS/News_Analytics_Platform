@@ -185,7 +185,10 @@ def exportar_markdown(step_input: StepInput) -> StepOutput:
     arquivo = output_dir / f"materia_{_slug(tema)}_{date.today().isoformat()}.md"
     arquivo.write_text(materia + "\n", encoding="utf-8")
 
-    caminho = arquivo.relative_to(BASE_DIR).as_posix()
+    try:
+        caminho = arquivo.relative_to(BASE_DIR).as_posix()
+    except ValueError:
+        caminho = arquivo.as_posix()
     return StepOutput(content=f"{materia}\n\n---\n_Matéria salva em `{caminho}`_")
 
 
