@@ -203,7 +203,7 @@ Isso permite:
 
 ### Linguagem
 
-- Python 3.13+
+- Python 3.12.11
 
 ### Framework de Agentes
 
@@ -238,9 +238,10 @@ Isso permite:
 # 📂 Estrutura do Projeto
 
 ```text
-Curadoria_Noticias/
+News_Analytics_Platform/
 │
 ├── agente/
+│   ├── comum.py               # configuração compartilhada
 │   ├── agente_curador.py
 │   ├── agente_curador_v2.py
 │   ├── agente_curador_v3.py
@@ -252,7 +253,7 @@ Curadoria_Noticias/
 │   ├── verificacao-factual/
 │   └── redacao-jornalistica/
 │
-├── output/
+├── output/                  # matérias geradas (V1..V4), ignorado pelo git
 │
 ├── ui/
 │   ├── app.py
@@ -269,13 +270,13 @@ Curadoria_Noticias/
 Clone o projeto:
 
 ```bash
-git clone https://github.com/GuiMRDS/Curadoria_Noticias.git
+git clone https://github.com/GuiMRDS/News_Analytics_Platform.git
 ```
 
 Entre na pasta:
 
 ```bash
-cd Curadoria_Noticias
+cd News_Analytics_Platform
 ```
 
 Instale as dependências:
@@ -284,17 +285,11 @@ Instale as dependências:
 uv sync
 ```
 
-ou
-
-```bash
-pip install -r requirements.txt
-```
-
 ---
 
 # 🔑 Configuração
 
-Crie um arquivo `.env`:
+Copie o `.env.example` para `.env` e preencha a chave:
 
 ```env
 GROQ_API_KEY=sua_chave
@@ -310,14 +305,18 @@ https://console.groq.com
 
 ## Workflow
 
+Execute a partir da raiz do projeto, como módulo:
+
 ```bash
-python agente/agente_curador_v4.py
+uv run python -m agente.agente_curador_v4
 ```
+
+As versões anteriores rodam da mesma forma (`agente.agente_curador`, `agente.agente_curador_v2`, `agente.agente_curador_v3`). As matérias são salvas em `output/<versão>/`.
 
 Exemplo:
 
 ```python
-news_curator_workflow.print_response(
+research_pipeline_workflow.print_response(
     "Quem é Gustavo Guanabara?",
     stream=True
 )
@@ -328,7 +327,7 @@ news_curator_workflow.print_response(
 ## Interface Streamlit
 
 ```bash
-streamlit run ui/app.py
+uv run streamlit run ui/app.py
 ```
 
 ---

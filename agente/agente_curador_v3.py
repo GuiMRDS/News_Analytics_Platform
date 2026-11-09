@@ -1,55 +1,28 @@
-import os
-import re
 from typing import List
-from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from agno.agent import Agent
-from agno.models.groq import Groq
-from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
-from agno.tools.file import FileTools
 from agno.workflow import Workflow, Step, Loop
 from agno.workflow.types import StepOutput
 
-
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+from agente.comum import (
+    carregar_skills,
+    contar_fontes,
+    criar_file_tools,
+    criar_modelo,
+    verificar_api_key,
+)
 
 MIN_FONTES = 3
 MAX_TENTATIVAS_APURACAO = 3
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-skills_dir = BASE_DIR / "skills"
-
-if not skills_dir.exists():
-    raise FileNotFoundError(
-        f"Skills não encontradas: {skills_dir}"
-    )
-
-shared_skills = Skills(
-    loaders=[
-        LocalSkills(str(skills_dir)),
-    ]
-)
-
-output_dir = Path(__file__).parent / "output/V2"
-output_dir.mkdir(parents=True, exist_ok=True)
-
-file_tools = FileTools(
-    base_dir=output_dir,
-    enable_save_file=True,
-    enable_read_file=True,
-    enable_list_files=True,
-)
+shared_skills = carregar_skills()
+file_tools = criar_file_tools("V3")
 
 
 pesquisador = Agent(
     name="Pesquisador",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um pesquisador de notícias.",
@@ -62,24 +35,9 @@ pesquisador = Agent(
     markdown=True,
 )
 
-time_research = Agent(
-    name="Research",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
-    skills=shared_skills,
-    instructions=[
-        "Você é o líder da equipe de pesquisa.",
-        "Sua missão é coordenar a busca por notícias relevantes e recentes sobre o tema solicitado.",
-        "Garanta que o pesquisador utilize a skill 'pesquisa-noticias' corretamente.",
-        "O objetivo final é fornecer um conjunto rico de informações para as etapas seguintes de apuração e verificação.",
-        "Certifique-se de que os resultados sejam salvos corretamente em arquivo.",
-    ],
-    add_datetime_to_context=True,
-    markdown=True,
-)
-
 apurador = Agent(
     name="Apurador de Fontes",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um apurador de fontes jornalísticas.",
@@ -100,7 +58,7 @@ apurador = Agent(
 
 verificador = Agent(
     name="verificador Factual",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um verificador factual.",
@@ -115,7 +73,7 @@ verificador = Agent(
 
 redator = Agent(
     name="Redator",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um redator jornalístico profissional.",
@@ -133,40 +91,6 @@ redator = Agent(
     markdown=True,
 )
 
-
-def contar_fontes(texto: str) -> int:
-    secao = texto
-
-    match = re.search(
-        r"##\s*FONTES COLETADAS(.*?)(##|$)",
-        texto,
-        re.DOTALL | re.IGNORECASE,
-    )
-
-    if match:
-        secao = match.group(1)
-
-    fontes = re.findall(
-        r"\*\*(.*?)\*\*",
-        secao
-    )
-
-    urls_encontradas = re.findall(
-        r"https?://[^\s)]+",
-        secao
-    )
-
-    fontes_unicas = {
-        fonte.strip().lower()
-        for fonte in fontes
-    }
-
-    urls_unicas = set(urls_encontradas)
-
-    return max(
-        len(fontes_unicas),
-        len(urls_unicas)
-    )
 
 def fontes_suficientes(outputs: List[StepOutput]) -> bool:
     """
@@ -240,6 +164,7 @@ news_curator_workflow = Workflow(
 )
 
 if __name__ == "__main__":
+    verificar_api_key()
     news_curator_workflow.print_response(
         "Quem é Gustavo Guanabara?",
         stream=True

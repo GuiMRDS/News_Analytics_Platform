@@ -1,26 +1,14 @@
-import os
-
-from pathlib import Path
 from agno.agent import Agent
-from agno.models.groq import Groq
-from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
-from agno.tools.file import FileTools
-from dotenv import load_dotenv
 
-load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-skills_dir = Path(__file__).parent / "skills"
-output_dir = Path(__file__).parent / "output/V0"
-
-
-file_tools = FileTools(
-    base_dir=output_dir,
-    enable_save_file=True,
-    enable_read_file=True,
-    enable_list_files=True,
+from agente.comum import (
+    carregar_skills,
+    criar_file_tools,
+    criar_modelo,
+    verificar_api_key,
 )
+
+file_tools = criar_file_tools("V1")
 
 instrucoes_prompt= """
 Você é um jornalista profissional.
@@ -43,8 +31,8 @@ Regras:
 
 agente_noticias = Agent(
     name="agente de Noticias",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
-    skills=Skills(loaders=[LocalSkills(str(skills_dir))]),
+    model=criar_modelo(),
+    skills=carregar_skills(),
     instructions=[
         "Você é um jornalista completo: pesquisador, apurador, verificador factual e redator.",
         "Receba um tema e execute TODAS as etapas abaixo em sequência.",
@@ -58,7 +46,7 @@ agente_noticias = Agent(
         "",
         "Apresente ao usuário APENAS a matéria jornalística final (Etapa 4).",
         "As etapas 1, 2 e 3 são seu processo interno de trabalho.",
-        "Salve o documento final em um arquivo .md no diretório",
+        "Salve o documento final em um arquivo .md usando a ferramenta save_file.",
     ],
     tools=[DuckDuckGoTools(), file_tools],
     add_datetime_to_context=True,
@@ -67,6 +55,7 @@ agente_noticias = Agent(
 
 
 if __name__ == "__main__":
+    verificar_api_key()
     agente_noticias.print_response(
         "Quem é Gustavo Guanabara?",
         stream=True

@@ -1,39 +1,21 @@
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from agno.agent import Agent
-from agno.models.groq import Groq
-from agno.skills import Skills, LocalSkills
 from agno.tools.duckduckgo import DuckDuckGoTools
-from agno.tools.file import FileTools
 from agno.workflow import Workflow
 
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-output_dir = Path(__file__).parent / "output/V2"
-output_dir.mkdir(parents=True, exist_ok=True)
-file_tools = FileTools(
-    base_dir=output_dir,
-    enable_save_file=True,
-    enable_read_file=True,
-    enable_list_files=True,
+from agente.comum import (
+    carregar_skills,
+    criar_file_tools,
+    criar_modelo,
+    verificar_api_key,
 )
 
-skills_dir = Path(__file__).parent / "skills"
-shared_skills = Skills(
-    loaders=[
-        LocalSkills(str(skills_dir)),
-    ]
-)
+file_tools = criar_file_tools("V2")
+shared_skills = carregar_skills()
 
 
 pesquisador = Agent(
     name="Pesquisador",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um pesquisador de notícias.",
@@ -48,7 +30,7 @@ pesquisador = Agent(
 
 apurador = Agent(
     name="Apurador de Fontes",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
          "Você é um apurador de fontes jornalísticas.",
@@ -63,7 +45,7 @@ apurador = Agent(
 
 verificador = Agent(
     name="verificador Factual",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um verificador factual.",
@@ -78,7 +60,7 @@ verificador = Agent(
 
 redator = Agent(
     name="Redator",
-    model = Groq(id="openai/gpt-oss-20b",api_key=GROQ_API_KEY),
+    model=criar_modelo(),
     skills=shared_skills,
     instructions=[
         "Você é um redator jornalístico profissional.",
@@ -101,6 +83,7 @@ workflow = Workflow(
 
 
 if __name__ == "__main__":
+    verificar_api_key()
     workflow.print_response(
         "Quem é Gustavo Guanabara?",
         stream=True
