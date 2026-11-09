@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Terminal · Design System 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+/* ==========================================================================
+   QUANTUM TERMINAL — Design System 1
+   Terminal financeiro sci-fi. Inspiração: futuristic-webgl (neon ciano,
+   scanlines, varredura, cantos retos, partículas) + componentes do usuário.
+   ========================================================================== */
+:root {
+  /* Superfícies */
+  --qt-void: #000000;
+  --qt-base: #030608;
+  --qt-surface: #060b0e;
+  --qt-surface-2: #0a1216;
+  --qt-surface-3: #0f1a20;
+  /* Linhas */
+  --qt-line: rgba(255, 255, 255, 0.06);
+  --qt-line-2: rgba(255, 255, 255, 0.12);
+  --qt-line-glow: rgba(34, 211, 238, 0.35);
+  /* Marca */
+  --qt-cyan: #22d3ee;
+  --qt-cyan-strong: #06b6d4;
+  --qt-cyan-soft: rgba(34, 211, 238, 0.10);
+  --qt-blue: #3b82f6;
+  --qt-violet: #8b5cf6;
+  /* Semânticas de mercado */
+  --qt-up: #00ffa3;
+  --qt-up-soft: rgba(0, 255, 163, 0.10);
+  --qt-down: #ff3d71;
+  --qt-down-soft: rgba(255, 61, 113, 0.10);
+  --qt-warn: #fbbf24;
+  --qt-info: #60a5fa;
+  /* Texto */
+  --qt-text: #e6faff;
+  --qt-text-2: #9fb4bc;
+  --qt-text-3: #5c7079;
+  --qt-text-4: #34444b;
+  /* Tipografia */
+  --qt-font-display: 'Orbitron', sans-serif;
+  --qt-font-body: 'Inter', system-ui, sans-serif;
+  --qt-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Espaçamento (base 4) */
+  --qt-s1: 4px; --qt-s2: 8px; --qt-s3: 12px; --qt-s4: 16px; --qt-s5: 24px;
+  --qt-s6: 32px; --qt-s7: 48px; --qt-s8: 64px; --qt-s9: 96px;
+  /* Raios — estética afiada */
+  --qt-r0: 0; --qt-r1: 2px; --qt-r2: 4px;
+  /* Elevação = brilho, não sombra */
+  --qt-glow-1: 0 0 0 1px var(--qt-line-glow), 0 0 24px -8px rgba(34, 211, 238, 0.45);
+  --qt-glow-2: 0 0 0 1px var(--qt-cyan), 0 0 40px -6px rgba(34, 211, 238, 0.6);
+  --qt-glow-up: 0 0 18px -4px rgba(0, 255, 163, 0.6);
+  --qt-glow-down: 0 0 18px -4px rgba(255, 61, 113, 0.6);
+  /* Movimento */
+  --qt-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --qt-ease-scan: cubic-bezier(0.4, 0, 0.2, 1);
+  --qt-dur-1: 120ms; --qt-dur-2: 240ms; --qt-dur-3: 480ms; --qt-dur-4: 900ms;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--qt-void);
+  color: var(--qt-text);
+  font-family: var(--qt-font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: rgba(34, 211, 238, 0.3); color: #fff; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #000; border-left: 1px solid var(--qt-line); }
+::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.25); }
+::-webkit-scrollbar-thumb:hover { background: rgba(34, 211, 238, 0.6); }
+a { color: inherit; text-decoration: none; }
+svg.lucide { width: 18px; height: 18px; stroke-width: 1.5; flex-shrink: 0; }
+
+/* ---------- Atmosfera ---------- */
+.fx-streaks { position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(90deg, transparent 99%, rgba(34, 211, 238, 0.035) 100%);
+  background-size: 10vw 100%; }
+.fx-scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.35;
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 4px; }
+.fx-vignette { position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.07), transparent 60%),
+              radial-gradient(ellipse at 100% 100%, rgba(139, 92, 246, 0.05), transparent 50%); }
+#scroll-progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; z-index: 100;
+  background: linear-gradient(90deg, var(--qt-cyan), var(--qt-blue), var(--qt-up));
+  transform-origin: left; transform: scaleX(0); box-shadow: 0 0 12px var(--qt-cyan); }
+
+/* ---------- Layout do documento ---------- */
+.doc-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: 64px;
+  display: flex; align-items: center; gap: var(--qt-s5); padding: 0 var(--qt-s6);
+  background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(16px); border-bottom: 1px solid var(--qt-line); }
+.doc-nav .brand { display: flex; align-items: center; gap: 10px; font-family: var(--qt-font-display);
+  font-weight: 700; letter-spacing: 0.18em; font-size: 13px; }
+.doc-nav .brand .mark { width: 22px; height: 22px; border: 1px solid var(--qt-cyan); position: relative;
+  box-shadow: var(--qt-glow-1); }
+.doc-nav .brand .mark::after { content: ''; position: absolute; inset: 5px; background: var(--qt-cyan);
+  animation: pulse-core 2.4s ease-in-out infinite; }
+.doc-nav .links { display: flex; gap: var(--qt-s5); margin-left: auto; font-family: var(--qt-font-mono);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--qt-text-3); }
+.doc-nav .links a { transition: color var(--qt-dur-2); position: relative; }
+.doc-nav .links a:hover { color: var(--qt-cyan); }
+.doc-nav .links a::before { content: '/'; color: var(--qt-text-4); margin-right: 4px; }
+main.doc { position: relative; z-index: 2; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--qt-s6); }
+section.block { padding: var(--qt-s9) 0; border-bottom: 1px solid var(--qt-line); }
+.sec-head { display: grid; grid-template-columns: 180px 1fr; gap: var(--qt-s6); margin-bottom: var(--qt-s7); }
+.sec-index { font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-cyan);
+  letter-spacing: 0.2em; padding-top: 10px; border-top: 1px solid var(--qt-cyan); height: fit-content; }
+.sec-title { font-family: var(--qt-font-display); font-size: clamp(28px, 4vw, 44px); font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1; }
+.sec-title em { font-style: normal; color: var(--qt-cyan); text-shadow: 0 0 24px rgba(34, 211, 238, 0.5); }
+.sec-desc { color: var(--qt-text-2); max-width: 640px; margin-top: var(--qt-s3); }
+.sub { font-family: var(--qt-font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--qt-text-3); margin: var(--qt-s7) 0 var(--qt-s4); display: flex; align-items: center; gap: 12px; }
+.sub::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--qt-line-2), transparent); }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; min-height: min(100vh, 920px); display: flex; align-items: center; overflow: hidden;
+  border-bottom: 1px solid var(--qt-line); padding-top: 64px; }
+#particles { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-inner { position: relative; z-index: 2; }
+.hero-tag { display: inline-flex; align-items: center; gap: 10px; font-family: var(--qt-font-mono);
+  font-size: 11px; letter-spacing: 0.2em; color: var(--qt-cyan); border: 1px solid var(--qt-line-glow);
+  padding: 6px 12px; background: rgba(34, 211, 238, 0.05); text-transform: uppercase; }
+.hero h1 { font-family: var(--qt-font-display); font-weight: 900; font-size: clamp(44px, 8vw, 112px);
+  line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase; margin: var(--qt-s5) 0; }
+.hero h1 .glow { color: var(--qt-cyan); text-shadow: 0 0 40px rgba(34, 211, 238, 0.55); }
+.hero p.lead { font-size: 18px; color: var(--qt-text-2); max-width: 560px; font-weight: 300; }
+.hero-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: var(--qt-s8);
+  background: var(--qt-line); border: 1px solid var(--qt-line); max-width: 820px; }
+.hero-meta div { background: rgba(0, 0, 0, 0.75); padding: var(--qt-s4) var(--qt-s5); backdrop-filter: blur(6px); }
+.hero-meta b { display: block; font-family: var(--qt-font-mono); font-size: 22px; color: var(--qt-text); font-weight: 500; }
+.hero-meta span { font-family: var(--qt-font-mono); font-size: 10px; letter-spacing: 0.18em; color: var(--qt-text-3); text-transform: uppercase; }
+.scanbar { position: absolute; left: 0; right: 0; height: 1px; overflow: hidden; }
+.scanbar::after { content: ''; position: absolute; top: 0; left: 0; width: 30%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--qt-cyan), transparent);
+  animation: scan-horizontal 3s var(--qt-ease-scan) infinite; }
+
+/* ---------- Cores ---------- */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  border-top: 1px solid var(--qt-line); border-left: 1px solid var(--qt-line); }
+.swatch { background: var(--qt-base); padding: var(--qt-s3); cursor: copy; transition: background var(--qt-dur-2);
+  border-right: 1px solid var(--qt-line); border-bottom: 1px solid var(--qt-line); }
+.swatch:hover { background: var(--qt-surface-2); }
+.swatch .chip { height: 72px; margin-bottom: var(--qt-s3); position: relative; border: 1px solid var(--qt-line); }
+.swatch .name { font-size: 13px; font-weight: 500; }
+.swatch .val { font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-text-3); }
+.swatch.copied .val { color: var(--qt-up); }
+
+/* ---------- Tipografia ---------- */
+.type-row { display: grid; grid-template-columns: 200px 1fr; gap: var(--qt-s5); align-items: baseline;
+  padding: var(--qt-s5) 0; border-bottom: 1px dashed var(--qt-line); }
+.type-row .meta { font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-text-3); line-height: 1.8; }
+.type-row .meta b { color: var(--qt-cyan); font-weight: 500; }
+.t-display { font-family: var(--qt-font-display); font-size: 64px; font-weight: 900; text-transform: uppercase; line-height: 1; letter-spacing: 0.02em; }
+.t-h1 { font-family: var(--qt-font-display); font-size: 40px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.t-h2 { font-family: var(--qt-font-body); font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.t-body { font-size: 15px; color: var(--qt-text-2); max-width: 620px; }
+.t-data { font-family: var(--qt-font-mono); font-size: 32px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.t-label { font-family: var(--qt-font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--qt-text-3); }
+
+/* ---------- Tokens de espaço / raio / brilho ---------- */
+.token-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--qt-s5); }
+.token-card { border: 1px solid var(--qt-line); padding: var(--qt-s5); background: var(--qt-base); }
+.space-bar { display: flex; align-items: center; gap: 12px; font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-text-3); margin: 6px 0; }
+.space-bar i { display: block; height: 8px; background: var(--qt-cyan); box-shadow: 0 0 10px rgba(34, 211, 238, 0.5); }
+.glow-demo { height: 56px; border: 1px solid var(--qt-line); margin-bottom: 12px; display: flex; align-items: center;
+  justify-content: center; font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-text-3); background: var(--qt-surface); }
+
+/* ---------- Painel HUD (base de todos os cards) ---------- */
+.hud { position: relative; background: linear-gradient(180deg, var(--qt-surface), var(--qt-base));
+  border: 1px solid var(--qt-line); padding: var(--qt-s5); }
+.hud::before, .hud::after { content: ''; position: absolute; width: 10px; height: 10px; pointer-events: none;
+  border-color: var(--qt-cyan); border-style: solid; opacity: 0.7; transition: all var(--qt-dur-3) var(--qt-ease-out); }
+.hud::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+.hud::after { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+.hud:hover::before, .hud:hover::after { width: 22px; height: 22px; opacity: 1; }
+.hud-title { display: flex; align-items: center; gap: 8px; font-family: var(--qt-font-mono); font-size: 11px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--qt-text-3); margin-bottom: var(--qt-s4); }
+.hud-title .live { margin-left: auto; color: var(--qt-up); display: flex; align-items: center; gap: 6px; }
+.dot { width: 6px; height: 6px; background: currentColor; display: inline-block; box-shadow: 0 0 8px currentColor; }
+.dot.blink { animation: blink 1.2s steps(2) infinite; }
+
+/* ---------- Botões ---------- */
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--qt-s4); align-items: center; }
+.btn { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 20px;
+  font-family: var(--qt-font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+  border: 1px solid var(--qt-line-2); background: transparent; color: var(--qt-text); cursor: pointer;
+  overflow: hidden; transition: color var(--qt-dur-2), border-color var(--qt-dur-2), box-shadow var(--qt-dur-2); }
+.btn span, .btn svg { position: relative; z-index: 1; }
+.btn::before { content: ''; position: absolute; inset: 0; background: var(--qt-cyan); transform: translateY(101%);
+  transition: transform var(--qt-dur-2) var(--qt-ease-out); }
+.btn:hover { color: #001014; border-color: var(--qt-cyan); box-shadow: var(--qt-glow-2); }
+.btn:hover::before { transform: translateY(0); }
+.btn.primary { background: var(--qt-cyan); color: #001014; border-color: var(--qt-cyan); box-shadow: var(--qt-glow-1); }
+.btn.primary::before { background: #fff; }
+.btn.ghost { border-color: transparent; color: var(--qt-text-2); }
+.btn.ghost::before { background: var(--qt-cyan-soft); }
+.btn.ghost:hover { color: var(--qt-cyan); box-shadow: none; border-color: var(--qt-line-glow); }
+.btn.danger:hover { border-color: var(--qt-down); box-shadow: var(--qt-glow-down); }
+.btn.danger::before { background: var(--qt-down); }
+.btn.icon { width: 42px; padding: 0; justify-content: center; }
+.btn.sm { height: 32px; padding: 0 12px; font-size: 10px; }
+.btn[disabled] { opacity: 0.35; pointer-events: none; }
+.btn .spinner { width: 14px; height: 14px; border: 1px solid currentColor; border-right-color: transparent; animation: spin 0.8s linear infinite; }
+
+/* ---------- Inputs ---------- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-family: var(--qt-font-mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--qt-text-3); }
+.input { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border: 1px solid var(--qt-line-2);
+  background: var(--qt-base); transition: border-color var(--qt-dur-2), box-shadow var(--qt-dur-2); }
+.input:focus-within { border-color: var(--qt-cyan); box-shadow: var(--qt-glow-1); }
+.input input { flex: 1; background: none; border: 0; outline: 0; color: var(--qt-text); font-family: var(--qt-font-mono); font-size: 13px; }
+.input input::placeholder { color: var(--qt-text-4); }
+.input .prompt { color: var(--qt-cyan); font-family: var(--qt-font-mono); }
+.input kbd { font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-3); border: 1px solid var(--qt-line-2); padding: 2px 6px; }
+
+/* ---------- Segmentado (versões dos agentes) ---------- */
+.seg { display: inline-flex; border: 1px solid var(--qt-line-2); position: relative; background: var(--qt-base); }
+.seg button { position: relative; z-index: 1; height: 38px; padding: 0 16px; background: none; border: 0; cursor: pointer;
+  font-family: var(--qt-font-mono); font-size: 11px; letter-spacing: 0.12em; color: var(--qt-text-3); transition: color var(--qt-dur-2); }
+.seg button + button { border-left: 1px solid var(--qt-line); }
+.seg button.active { color: #001014; }
+.seg .thumb { position: absolute; top: 0; bottom: 0; background: var(--qt-cyan); box-shadow: var(--qt-glow-1);
+  transition: left var(--qt-dur-3) var(--qt-ease-out), width var(--qt-dur-3) var(--qt-ease-out); }
+
+/* ---------- Badges / tickers ---------- */
+.badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; font-family: var(--qt-font-mono);
+  font-size: 11px; font-weight: 500; letter-spacing: 0.06em; border: 1px solid; }
+.badge.up { color: var(--qt-up); border-color: rgba(0, 255, 163, 0.3); background: var(--qt-up-soft); }
+.badge.down { color: var(--qt-down); border-color: rgba(255, 61, 113, 0.3); background: var(--qt-down-soft); }
+.badge.neutral { color: var(--qt-text-2); border-color: var(--qt-line-2); }
+.badge.cyan { color: var(--qt-cyan); border-color: var(--qt-line-glow); background: var(--qt-cyan-soft); }
+.badge.warn { color: var(--qt-warn); border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.08); }
+.ticker-chip { display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--qt-line); background: var(--qt-base); font-family: var(--qt-font-mono); font-size: 12px; }
+.ticker-chip b { font-weight: 700; letter-spacing: 0.06em; }
+
+/* ---------- Ticker tape ---------- */
+.tape { position: relative; overflow: hidden; border-top: 1px solid var(--qt-line); border-bottom: 1px solid var(--qt-line); background: var(--qt-base);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.tape-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+.tape:hover .tape-track { animation-play-state: paused; }
+.tape-item { display: flex; align-items: center; gap: 10px; padding: 10px 22px; font-family: var(--qt-font-mono); font-size: 12px; border-right: 1px solid var(--qt-line); white-space: nowrap; }
+.tape-item b { color: var(--qt-text); letter-spacing: 0.08em; }
+.tape-item .px { color: var(--qt-text-2); }
+.up-t { color: var(--qt-up); } .down-t { color: var(--qt-down); }
+
+/* ---------- KPI ---------- */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--qt-s4); }
+.kpi .value { font-family: var(--qt-font-mono); font-size: 30px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.kpi .delta { display: flex; align-items: center; gap: 6px; font-family: var(--qt-font-mono); font-size: 12px; margin-top: 4px; }
+.kpi svg.spark { width: 100%; height: 44px; margin-top: 14px; display: block; overflow: visible; }
+
+/* ---------- Gráfico ---------- */
+.chart-wrap { position: relative; }
+.chart-wrap svg { width: 100%; height: 280px; display: block; overflow: visible; }
+.chart-grid line { stroke: var(--qt-line); stroke-dasharray: 2 4; }
+.chart-axis { font-family: var(--qt-font-mono); font-size: 10px; fill: var(--qt-text-3); }
+.chart-line { fill: none; stroke: var(--qt-cyan); stroke-width: 1.5; filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.7)); }
+.chart-cross { stroke: var(--qt-cyan); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; }
+.chart-tip { position: absolute; pointer-events: none; opacity: 0; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--qt-cyan);
+  padding: 6px 10px; font-family: var(--qt-font-mono); font-size: 11px; box-shadow: var(--qt-glow-1); transform: translate(-50%, -120%); white-space: nowrap; }
+.chart-range { display: flex; gap: 2px; }
+.chart-range button { background: none; border: 1px solid transparent; color: var(--qt-text-3); font-family: var(--qt-font-mono); font-size: 10px; padding: 4px 8px; cursor: pointer; letter-spacing: 0.1em; }
+.chart-range button.active, .chart-range button:hover { color: var(--qt-cyan); border-color: var(--qt-line-glow); }
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+.bars i { flex: 1; background: linear-gradient(180deg, var(--qt-cyan), rgba(34, 211, 238, 0.05)); transform-origin: bottom; transform: scaleY(0);
+  transition: transform 900ms var(--qt-ease-out); }
+.bars i.neg { background: linear-gradient(0deg, var(--qt-down), rgba(255, 61, 113, 0.05)); }
+.in-view .bars i { transform: scaleY(1); }
+
+/* ---------- Heatmap (calendário de pregões) ---------- */
+.heat { display: grid; grid-template-columns: repeat(21, 1fr); gap: 3px; }
+.heat i { aspect-ratio: 1; display: block; border: 1px solid rgba(255, 255, 255, 0.03); transition: transform var(--qt-dur-1); }
+.heat i:hover { transform: scale(1.5); outline: 1px solid var(--qt-cyan); }
+
+/* ---------- Tabela watchlist ---------- */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; font-family: var(--qt-font-mono); font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--qt-text-3); padding: 10px 12px; border-bottom: 1px solid var(--qt-line-2); }
+.table td { padding: 12px; border-bottom: 1px solid var(--qt-line); font-family: var(--qt-font-mono); }
+.table th.num { text-align: right; }
+.table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table tbody tr { transition: background var(--qt-dur-1); position: relative; }
+.table tbody tr:hover { background: linear-gradient(90deg, rgba(34, 211, 238, 0.07), transparent); }
+.table tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--qt-cyan); }
+.asset { display: flex; align-items: center; gap: 10px; }
+.asset .logo { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--qt-line-2); font-size: 10px; font-weight: 700; color: var(--qt-cyan); }
+.asset small { display: block; font-family: var(--qt-font-body); color: var(--qt-text-3); font-size: 11px; }
+
+/* ---------- Toggle / slider ---------- */
+.toggle { flex-shrink: 0; width: 44px; height: 22px; border: 1px solid var(--qt-line-2); position: relative; cursor: pointer; background: var(--qt-base); transition: all var(--qt-dur-2); }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: var(--qt-text-3); transition: all var(--qt-dur-3) var(--qt-ease-out); }
+.toggle.on { border-color: var(--qt-cyan); box-shadow: var(--qt-glow-1); }
+.toggle.on::after { left: 25px; background: var(--qt-cyan); box-shadow: 0 0 10px var(--qt-cyan); }
+.range { -webkit-appearance: none; appearance: none; width: 100%; height: 2px; background: var(--qt-line-2); outline: none; }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--qt-cyan); box-shadow: var(--qt-glow-2); cursor: pointer; transform: rotate(45deg); }
+.range::-moz-range-thumb { width: 14px; height: 14px; background: var(--qt-cyan); border: 0; cursor: pointer; }
+
+/* ---------- Sidebar (rail + painel) ---------- */
+.side { width: 272px; background: var(--qt-base); border-right: 1px solid var(--qt-line); display: flex; flex-direction: column; transition: width var(--qt-dur-3) var(--qt-ease-out); overflow: hidden; }
+.side.collapsed { width: 64px; }
+.side-head { display: flex; align-items: center; gap: 10px; padding: 18px 18px; border-bottom: 1px solid var(--qt-line); min-height: 64px; }
+.side-head .mark { width: 26px; height: 26px; flex-shrink: 0; border: 1px solid var(--qt-cyan); display: grid; place-items: center; box-shadow: var(--qt-glow-1); }
+.side-head .mark i { width: 10px; height: 10px; background: var(--qt-cyan); animation: pulse-core 2.4s infinite; }
+.side-head .name { font-family: var(--qt-font-display); font-size: 12px; letter-spacing: 0.16em; font-weight: 700; white-space: nowrap; }
+.side-head .collapse { margin-left: auto; background: none; border: 0; color: var(--qt-text-3); cursor: pointer; display: grid; }
+.side-group { padding: 14px 10px 6px; font-family: var(--qt-font-mono); font-size: 10px; letter-spacing: 0.2em; color: var(--qt-text-4); text-transform: uppercase; white-space: nowrap; }
+.side-link { display: flex; align-items: center; gap: 12px; margin: 1px 8px; padding: 9px 12px; font-size: 13px; color: var(--qt-text-2); cursor: pointer; position: relative; white-space: nowrap; transition: all var(--qt-dur-2); }
+.side-link:hover { color: var(--qt-text); background: var(--qt-surface-2); }
+.side-link.active { color: var(--qt-cyan); background: linear-gradient(90deg, var(--qt-cyan-soft), transparent); }
+.side-link.active::before { content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 2px; background: var(--qt-cyan); box-shadow: 0 0 10px var(--qt-cyan); }
+.side-link .count { margin-left: auto; font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-3); border: 1px solid var(--qt-line-2); padding: 0 6px; }
+.side-link .tag-dot { width: 8px; height: 8px; flex-shrink: 0; }
+.side.collapsed .side-group, .side.collapsed .side-link span, .side.collapsed .side-link .count, .side.collapsed .side-head .name, .side.collapsed .quota, .side.collapsed .user-meta { opacity: 0; pointer-events: none; }
+.quota { margin: auto 12px 12px; border: 1px solid var(--qt-line); padding: 14px; background: var(--qt-surface); }
+.quota .bar { height: 3px; background: var(--qt-line-2); margin: 10px 0 6px; overflow: hidden; }
+.quota .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--qt-cyan), var(--qt-warn)); box-shadow: 0 0 8px var(--qt-cyan); width: 0; transition: width 1.4s var(--qt-ease-out); }
+.user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--qt-line); white-space: nowrap; }
+.avatar { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border: 1px solid var(--qt-line-glow); font-family: var(--qt-font-mono); font-size: 12px; color: var(--qt-cyan); position: relative; }
+.avatar::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; background: var(--qt-up); box-shadow: 0 0 6px var(--qt-up); }
+
+/* ---------- Chat / console ---------- */
+.console { display: flex; flex-direction: column; gap: 14px; }
+.msg { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+.msg .who { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--qt-line-2); font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-3); }
+.msg.ai .who { border-color: var(--qt-cyan); color: var(--qt-cyan); box-shadow: var(--qt-glow-1); }
+.msg .body { font-size: 14px; color: var(--qt-text-2); }
+.msg .body .meta { font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-3); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
+.msg.user .body { color: var(--qt-text); }
+.msg .body h4 { font-family: var(--qt-font-body); font-weight: 600; color: var(--qt-text); font-size: 16px; margin: 6px 0; }
+.cite { font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-cyan); vertical-align: super; }
+.caret { display: inline-block; width: 8px; height: 15px; background: var(--qt-cyan); vertical-align: text-bottom; animation: blink 1s steps(2) infinite; margin-left: 2px; }
+.suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+.suggestion { border: 1px dashed var(--qt-line-2); padding: 8px 12px; font-size: 12px; color: var(--qt-text-2); cursor: pointer; transition: all var(--qt-dur-2); background: none; font-family: var(--qt-font-body); }
+.suggestion:hover { border-style: solid; border-color: var(--qt-cyan); color: var(--qt-cyan); background: var(--qt-cyan-soft); }
+
+/* ---------- Pipeline dos agentes ---------- */
+.pipeline { display: flex; flex-direction: column; gap: 0; }
+.step { display: grid; grid-template-columns: 24px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; position: relative; }
+.step:not(:last-child)::after { content: ''; position: absolute; left: 11px; top: 32px; bottom: -8px; width: 1px; background: var(--qt-line-2); }
+.step .node { width: 24px; height: 24px; border: 1px solid var(--qt-line-2); display: grid; place-items: center; background: var(--qt-base); z-index: 1; }
+.step .node svg { width: 12px; height: 12px; }
+.step .label { font-size: 13px; color: var(--qt-text-3); }
+.step .time { font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-4); }
+.step.done .node { border-color: var(--qt-up); color: var(--qt-up); box-shadow: var(--qt-glow-up); }
+.step.done .label { color: var(--qt-text-2); }
+.step.done:not(:last-child)::after { background: var(--qt-up); box-shadow: 0 0 6px var(--qt-up); }
+.step.run .node { border-color: var(--qt-cyan); color: var(--qt-cyan); box-shadow: var(--qt-glow-2); animation: pulse-ring 1.4s infinite; }
+.step.run .label { color: var(--qt-text); }
+.step.err .node { border-color: var(--qt-down); color: var(--qt-down); box-shadow: var(--qt-glow-down); }
+
+/* ---------- Alertas / toasts / skeleton ---------- */
+.alert { display: flex; gap: 12px; padding: 14px 16px; border: 1px solid; border-left-width: 3px; font-size: 13px; }
+.alert.info { border-color: var(--qt-line-glow); background: var(--qt-cyan-soft); color: var(--qt-text); }
+.alert.err { border-color: rgba(255, 61, 113, 0.4); background: var(--qt-down-soft); }
+.alert.warn { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.06); }
+.alert b { display: block; font-family: var(--qt-font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2px; }
+.skeleton { background: linear-gradient(90deg, var(--qt-surface-2) 0%, var(--qt-surface-3) 40%, var(--qt-surface-2) 80%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; height: 12px; margin: 8px 0; }
+.toast-zone { position: fixed; right: 24px; bottom: 24px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast { min-width: 280px; background: rgba(0, 0, 0, 0.92); border: 1px solid var(--qt-cyan); box-shadow: var(--qt-glow-2); padding: 12px 14px; font-family: var(--qt-font-mono); font-size: 12px; display: flex; gap: 10px; align-items: center; animation: toast-in var(--qt-dur-3) var(--qt-ease-out) both; }
+.toast.out { animation: toast-out var(--qt-dur-2) ease-in both; }
+
+/* ---------- Ícones ---------- */
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); border-top: 1px solid var(--qt-line); border-left: 1px solid var(--qt-line); }
+.icon-cell { background: var(--qt-base); border-right: 1px solid var(--qt-line); border-bottom: 1px solid var(--qt-line); padding: 18px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-family: var(--qt-font-mono); font-size: 10px; color: var(--qt-text-3); transition: all var(--qt-dur-2); }
+.icon-cell svg.lucide { width: 22px; height: 22px; color: var(--qt-text-2); transition: all var(--qt-dur-2); }
+.icon-cell:hover { background: var(--qt-surface-2); color: var(--qt-cyan); }
+.icon-cell:hover svg.lucide { color: var(--qt-cyan); filter: drop-shadow(0 0 6px var(--qt-cyan)); transform: translateY(-2px); }
+
+/* ---------- Movimento ---------- */
+.motion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--qt-s4); }
+.motion-card { min-height: 190px; display: flex; flex-direction: column; }
+.motion-card .stage { flex: 1; display: grid; place-items: center; min-height: 110px; position: relative; overflow: hidden; border: 1px dashed var(--qt-line); margin-bottom: 12px; }
+.motion-card code { font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-cyan); }
+.motion-card p { font-size: 12px; color: var(--qt-text-3); }
+.replay { margin-left: auto; background: none; border: 0; color: var(--qt-text-3); cursor: pointer; display: grid; }
+.replay:hover { color: var(--qt-cyan); }
+.demo-kinetic { font-family: var(--qt-font-display); font-size: 22px; font-weight: 700; text-transform: uppercase; }
+.demo-glitch { font-family: var(--qt-font-display); font-size: 26px; font-weight: 900; position: relative; }
+.demo-glitch::before, .demo-glitch::after { content: attr(data-text); position: absolute; inset: 0; }
+.demo-glitch::before { color: var(--qt-down); animation: glitch-a 2.6s infinite steps(1); mix-blend-mode: screen; }
+.demo-glitch::after { color: var(--qt-cyan); animation: glitch-b 2.6s infinite steps(1); mix-blend-mode: screen; }
+.demo-radar { width: 92px; height: 92px; border: 1px solid var(--qt-line-glow); border-radius: 50%; position: relative; background: repeating-radial-gradient(circle, transparent 0 14px, rgba(34, 211, 238, 0.08) 15px 16px); }
+.demo-radar::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(34, 211, 238, 0.5), transparent 25%); animation: spin 2.4s linear infinite; }
+.demo-typing { font-family: var(--qt-font-mono); font-size: 13px; color: var(--qt-text); }
+.demo-count { font-family: var(--qt-font-mono); font-size: 34px; color: var(--qt-up); text-shadow: 0 0 18px rgba(0, 255, 163, 0.5); }
+.magnetic { transition: transform 0.25s var(--qt-ease-out); will-change: transform; }
+
+/* reveal */
+.reveal { opacity: 0; transform: translate3d(0, 28px, 0); transition: opacity 800ms ease, transform 800ms var(--qt-ease-out); transition-delay: var(--d, 0ms); }
+.reveal.in-view { opacity: 1; transform: none; }
+.kinetic { opacity: 0; filter: blur(8px); transform: translate3d(0, 26px, 0) scale(0.98); transition: opacity 900ms ease, transform 900ms var(--qt-ease-out), filter 900ms ease; }
+.kinetic.in-view { opacity: 1; filter: blur(0); transform: none; }
+
+/* ---------- Composição: app ---------- */
+.app { display: flex; height: 860px; border: 1px solid var(--qt-line-2); background: var(--qt-void); position: relative; overflow: hidden; box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08), 0 40px 120px -30px rgba(34, 211, 238, 0.25); }
+.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.app-top { height: 64px; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--qt-line); }
+.app-top .crumbs { font-family: var(--qt-font-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--qt-text-3); text-transform: uppercase; }
+.app-top .crumbs b { color: var(--qt-text); font-weight: 500; }
+.app-top .search { margin-left: auto; width: 300px; height: 36px; }
+.app-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
+.app-dash { overflow: auto; padding: 18px; display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; }
+.app-dash .span2 { grid-column: span 2; } .app-dash .span4 { grid-column: span 4; } .app-dash .span3 { grid-column: span 3; }
+.app-chat { border-left: 1px solid var(--qt-line); display: flex; flex-direction: column; min-height: 0; background: linear-gradient(180deg, var(--qt-base), var(--qt-void)); }
+.app-chat .chat-head { padding: 14px 16px; border-bottom: 1px solid var(--qt-line); display: flex; flex-direction: column; gap: 10px; }
+.app-chat .chat-log { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.app-chat .chat-input { padding: 14px; border-top: 1px solid var(--qt-line); }
+.app .seg button { padding: 0 10px; height: 30px; font-size: 10px; }
+.mini-kpi { padding: 16px; }
+.mini-kpi .value { font-size: 20px; white-space: nowrap; }
+.mini-kpi .delta { white-space: nowrap; }
+
+/* ---------- Animações ---------- */
+@keyframes scan-horizontal { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-core { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6); } 100% { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(30px); } }
+@keyframes glitch-a { 0%, 92%, 100% { transform: none; opacity: 0; } 93% { transform: translate(-3px, 1px); opacity: 0.8; } 96% { transform: translate(2px, -1px); opacity: 0.8; } }
+@keyframes glitch-b { 0%, 92%, 100% { transform: none; opacity: 0; } 94% { transform: translate(3px, -1px); opacity: 0.8; } 97% { transform: translate(-2px, 1px); opacity: 0.8; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+@media (max-width: 1100px) {
+  .kpi-grid, .motion-grid { grid-template-columns: repeat(2, 1fr); }
+  .token-grid { grid-template-columns: 1fr; }
+  .app-body { grid-template-columns: 1fr; }
+  .app-chat { display: none; }
+  .app .side { display: none; }
+  .grid-data { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 720px) {
+  .wrap { padding: 0 16px; }
+  .sec-head, .type-row { grid-template-columns: 1fr; }
+  .doc-nav .links { display: none; }
+  .kpi-grid, .motion-grid, .hero-meta { grid-template-columns: 1fr; }
+  .app-dash { grid-template-columns: 1fr; } .app-dash > * { grid-column: auto !important; }
+  .t-display { font-size: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal, .kinetic { opacity: 1; transform: none; filter: none; }
+}
+</style>
+</head>
+<body>
+<div id="scroll-progress"></div>
+<div class="fx-vignette"></div>
+<div class="fx-streaks"></div>
+<div class="fx-scanlines"></div>
+
+<nav class="doc-nav">
+  <div class="brand"><span class="mark"></span>QUANTUM TERMINAL</div>
+  <div class="links">
+    <a href="#fundamentos">Fundamentos</a><a href="#icones">Ícones</a><a href="#componentes">Componentes</a>
+    <a href="#dados">Dados</a><a href="#movimento">Movimento</a><a href="#composicao">Composição</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <!-- ============================== HERO ============================== -->
+  <header class="hero">
+    <canvas id="particles"></canvas>
+    <div class="scanbar" style="top: 30%"></div>
+    <div class="scanbar" style="top: 72%; animation-delay: 1.4s"></div>
+    <div class="wrap hero-inner">
+      <span class="hero-tag"><span class="dot blink" style="color: var(--qt-up)"></span>Design System 01 · v1.0 · News Analytics</span>
+      <h1 class="kinetic">Quantum<br><span class="glow">Terminal</span></h1>
+      <p class="lead kinetic" style="--d: 120ms">Um terminal financeiro de ficção científica para investidores. Dados densos, neon preciso e telemetria dos agentes em tempo real: cada número brilha porque importa.</p>
+      <div class="hero-meta reveal" style="--d: 240ms">
+        <div><b data-count="12">0</b><span>Cores</span></div>
+        <div><b data-count="38">0</b><span>Componentes</span></div>
+        <div><b data-count="14">0</b><span>Animações</span></div>
+        <div><b>0px</b><span>Raio base</span></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tape" id="tape-hero"><div class="tape-track"></div></div>
+
+  <!-- ============================== FUNDAMENTOS ============================== -->
+  <section class="block" id="fundamentos">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">01 / FUNDAMENTOS</div>
+        <div>
+          <h2 class="sec-title">Cor, tipo e <em>luz</em></h2>
+          <p class="sec-desc">Fundo de vácuo absoluto, superfícies quase pretas e uma única cor de marca: o ciano. Verde neon e magenta são reservados às semânticas de mercado (alta e queda). Elevação é feita com brilho, nunca com sombra. Clique em uma cor para copiar o valor.</p>
+        </div>
+      </div>
+
+      <div class="sub">Superfícies</div>
+      <div class="swatches reveal" data-swatches="--qt-void:Void,--qt-base:Base,--qt-surface:Surface,--qt-surface-2:Surface 2,--qt-surface-3:Surface 3"></div>
+      <div class="sub">Marca & semânticas</div>
+      <div class="swatches reveal" data-swatches="--qt-cyan:Cyan · marca,--qt-cyan-strong:Cyan strong,--qt-blue:Blue · info,--qt-violet:Violet · IA,--qt-up:Up · alta,--qt-down:Down · queda,--qt-warn:Warn · alerta"></div>
+      <div class="sub">Texto</div>
+      <div class="swatches reveal" data-swatches="--qt-text:Text 1,--qt-text-2:Text 2,--qt-text-3:Text 3,--qt-text-4:Text 4"></div>
+
+      <div class="sub">Tipografia</div>
+      <div class="reveal">
+        <div class="type-row"><div class="meta"><b>Display</b><br>Orbitron 900 · 64/1<br>uppercase · +0.02em</div><div class="t-display">Ibovespa</div></div>
+        <div class="type-row"><div class="meta"><b>H1</b><br>Orbitron 700 · 40<br>uppercase · +0.04em</div><div class="t-h1">Mercado agora</div></div>
+        <div class="type-row"><div class="meta"><b>H2</b><br>Inter 600 · 26</div><div class="t-h2">Copom mantém a Selic em 13,75% ao ano</div></div>
+        <div class="type-row"><div class="meta"><b>Body</b><br>Inter 400 · 15/1.6</div><div class="t-body">A decisão veio em linha com o consenso do mercado. Para o investidor de renda fixa, títulos pós-fixados seguem rendendo acima da inflação, enquanto prefixados longos ficam sensíveis ao tom do comunicado.</div></div>
+        <div class="type-row"><div class="meta"><b>Data</b><br>JetBrains Mono 500 · 32<br>tabular-nums</div><div class="t-data">R$ 44,84 <span class="up-t" style="font-size: 18px">▲ 2,31%</span></div></div>
+        <div class="type-row"><div class="meta"><b>Label</b><br>JetBrains Mono 400 · 11<br>uppercase · +0.2em</div><div class="t-label">Fonte: Banco Central · SGS 432</div></div>
+      </div>
+
+      <div class="sub">Espaço · Raio · Brilho</div>
+      <div class="token-grid reveal">
+        <div class="token-card">
+          <div class="t-label" style="margin-bottom: 12px">Espaçamento · base 4</div>
+          <div id="space-scale"></div>
+        </div>
+        <div class="token-card">
+          <div class="t-label" style="margin-bottom: 12px">Raios</div>
+          <div class="glow-demo" style="border-radius: 0">--qt-r0 · 0 · padrão</div>
+          <div class="glow-demo" style="border-radius: 2px">--qt-r1 · 2px · chips</div>
+          <div class="glow-demo" style="border-radius: 50%; width: 56px; margin: 0">pills</div>
+        </div>
+        <div class="token-card">
+          <div class="t-label" style="margin-bottom: 12px">Elevação por brilho</div>
+          <div class="glow-demo" style="box-shadow: var(--qt-glow-1)">--qt-glow-1 · foco</div>
+          <div class="glow-demo" style="box-shadow: var(--qt-glow-2)">--qt-glow-2 · ativo</div>
+          <div class="glow-demo" style="box-shadow: var(--qt-glow-up); border-color: var(--qt-up)">--qt-glow-up · alta</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== ÍCONES ============================== -->
+  <section class="block" id="icones">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">02 / ÍCONES</div>
+        <div>
+          <h2 class="sec-title">Linhas <em>finas</em>, brilho no hover</h2>
+          <p class="sec-desc">Lucide com traço 1.5, sempre monocromático. No hover, o ícone ganha ciano e um halo. Para ativos sem logo, usamos o ticker em mono dentro de um quadrado de 1px.</p>
+        </div>
+      </div>
+      <div class="icon-grid reveal" id="icon-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============================== COMPONENTES ============================== -->
+  <section class="block" id="componentes">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">03 / COMPONENTES</div>
+        <div>
+          <h2 class="sec-title">Peças do <em>terminal</em></h2>
+          <p class="sec-desc">Todo container é um painel HUD: borda de 1px e cantos com colchetes que crescem no hover. Botões preenchem de baixo para cima; o seletor de versão desliza.</p>
+        </div>
+      </div>
+
+      <div class="sub">Botões</div>
+      <div class="btn-row reveal">
+        <button class="btn primary"><i data-lucide="sparkles"></i><span>Gerar matéria</span></button>
+        <button class="btn"><i data-lucide="line-chart"></i><span>Ver gráfico</span></button>
+        <button class="btn ghost"><span>Cancelar</span></button>
+        <button class="btn danger"><i data-lucide="trash-2"></i><span>Limpar</span></button>
+        <button class="btn icon" aria-label="Atualizar"><i data-lucide="refresh-cw"></i></button>
+        <button class="btn sm"><span>Small</span></button>
+        <button class="btn" id="btn-loading"><span class="spinner"></span><span>Executando</span></button>
+        <button class="btn" disabled><span>Desabilitado</span></button>
+      </div>
+
+      <div class="sub">Versão dos agentes · Inputs · Controles</div>
+      <div class="reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: end">
+        <div class="field">
+          <label>Versão dos agentes</label>
+          <div class="seg" data-seg><span class="thumb"></span>
+            <button class="active">V5</button><button>V4</button><button>V3</button><button>V2</button><button>V1</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Pergunta</label>
+          <div class="input"><span class="prompt">&gt;</span><input placeholder="Por que PETR4 caiu hoje?"><kbd>↵</kbd></div>
+        </div>
+        <div class="field">
+          <label>Buscar ativo</label>
+          <div class="input"><i data-lucide="search" style="color: var(--qt-text-3)"></i><input placeholder="Ticker, índice ou moeda"><kbd>⌘K</kbd></div>
+        </div>
+        <div class="field">
+          <label>Alertas de preço · Isento de IR</label>
+          <div style="display: flex; gap: 16px; align-items: center; height: 46px"><span class="toggle on" data-toggle></span><span class="toggle" data-toggle></span>
+            <span class="t-label">Selic</span><input class="range" type="range" min="2" max="20" step="0.25" value="13.75" id="selic-range"><span class="t-data" style="font-size: 14px; min-width: 64px" id="selic-out">13,75%</span></div>
+        </div>
+      </div>
+
+      <div class="sub">Badges · Tickers</div>
+      <div class="btn-row reveal">
+        <span class="badge up">▲ +2,31%</span><span class="badge down">▼ −1,08%</span><span class="badge neutral">0,00%</span>
+        <span class="badge cyan">Renda Fixa</span><span class="badge warn">Fonte única</span><span class="badge cyan"><span class="dot blink"></span>Ao vivo</span>
+        <span class="ticker-chip"><b>PETR4</b>R$ 44,84 <span class="up-t">▲ 2,31%</span></span>
+        <span class="ticker-chip"><b>VALE3</b>R$ 61,20 <span class="down-t">▼ 0,87%</span></span>
+        <span class="ticker-chip"><b>MXRF11</b>R$ 9,87 <span class="up-t">▲ 0,10%</span></span>
+      </div>
+
+      <div class="sub">Cards de indicador (KPI)</div>
+      <div class="kpi-grid" id="kpis"></div>
+
+      <div class="sub">Watchlist</div>
+      <div class="hud reveal">
+        <div class="hud-title"><i data-lucide="list"></i>Watchlist · B3<span class="live"><span class="dot blink"></span>Ao vivo</span></div>
+        <div style="overflow-x: auto"><table class="table" id="watch"></table></div>
+      </div>
+
+      <div class="sub">Feedback · Estados</div>
+      <div class="reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px">
+        <div class="alert info"><i data-lucide="info"></i><div><b>Pipeline iniciado</b>A V5 pode levar alguns minutos no plano gratuito do Groq.</div></div>
+        <div class="alert warn"><i data-lucide="alert-triangle" style="color: var(--qt-warn)"></i><div><b>Fontes limitadas</b>Apenas 2 fontes independentes encontradas.</div></div>
+        <div class="alert err"><i data-lucide="octagon-x" style="color: var(--qt-down)"></i><div><b>Cota diária esgotada</b>Libera em 10m58s. Troque o GROQ_MODEL_ID.</div></div>
+        <div class="hud"><div class="hud-title">Carregando</div><div class="skeleton" style="width: 70%"></div><div class="skeleton"></div><div class="skeleton" style="width: 45%"></div></div>
+      </div>
+      <div class="btn-row reveal" style="margin-top: 16px"><button class="btn sm" data-toast><i data-lucide="bell"></i><span>Disparar toast</span></button></div>
+    </div>
+  </section>
+
+  <!-- ============================== DADOS ============================== -->
+  <section class="block" id="dados">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">04 / DADOS</div>
+        <div>
+          <h2 class="sec-title">Gráficos como <em>telemetria</em></h2>
+          <p class="sec-desc">Linhas com brilho, mira tracejada e tooltip mono. Barras sobem com mola ao entrar na tela. O mapa de calor substitui o calendário de irrigação da referência: cada célula é um pregão.</p>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px" class="reveal grid-data">
+        <div class="hud">
+          <div class="hud-title"><i data-lucide="activity"></i>Ibovespa · pontos
+            <div class="chart-range" style="margin-left: auto" id="range"><button>1D</button><button>1S</button><button class="active">1M</button><button>1A</button></div>
+          </div>
+          <div class="chart-wrap" id="main-chart"></div>
+        </div>
+        <div style="display: grid; gap: 16px">
+          <div class="hud" id="bars-card">
+            <div class="hud-title"><i data-lucide="bar-chart-3"></i>Rentabilidade mensal · carteira</div>
+            <div class="bars" id="bars"></div>
+          </div>
+          <div class="hud">
+            <div class="hud-title"><i data-lucide="calendar"></i>Pregões · últimos 3 meses</div>
+            <div class="heat" id="heat"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== MOVIMENTO ============================== -->
+  <section class="block" id="movimento">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">05 / MOVIMENTO</div>
+        <div>
+          <h2 class="sec-title">Animação com <em>propósito</em></h2>
+          <p class="sec-desc">Curva padrão <code style="color: var(--qt-cyan)">cubic-bezier(.22, 1, .36, 1)</code>. Movimento só para comunicar estado: chegada de dados, processamento, alta e queda. Tudo respeita <code>prefers-reduced-motion</code>.</p>
+        </div>
+      </div>
+      <div class="motion-grid">
+        <div class="hud motion-card reveal"><div class="stage"><div class="demo-kinetic kinetic" id="m-kinetic">Kinetic</div></div><div style="display: flex"><code>.kinetic</code><button class="replay" data-replay="m-kinetic"><i data-lucide="rotate-ccw"></i></button></div><p>Blur + subida para títulos. 900ms.</p></div>
+        <div class="hud motion-card reveal" style="--d: 80ms"><div class="stage"><div class="scanbar" style="top: 50%; width: 100%"></div><span class="t-label">varredura</span></div><code>.scanbar</code><p>Linha de dados em loop: "processando".</p></div>
+        <div class="hud motion-card reveal" style="--d: 160ms"><div class="stage"><div class="demo-glitch" data-text="QUEDA">QUEDA</div></div><code>.glitch</code><p>Só para queda brusca (≤ −5%).</p></div>
+        <div class="hud motion-card reveal"><div class="stage"><div class="demo-radar"></div></div><code>.radar</code><p>Agentes pesquisando fontes.</p></div>
+        <div class="hud motion-card reveal" style="--d: 80ms"><div class="stage"><div class="demo-typing" id="m-type"></div></div><div style="display: flex"><code>typewriter()</code><button class="replay" data-replay-type><i data-lucide="rotate-ccw"></i></button></div><p>Resposta da IA em streaming.</p></div>
+        <div class="hud motion-card reveal magnetic" style="--d: 160ms" data-magnetic><div class="stage"><div class="demo-count" id="m-count">0</div></div><div style="display: flex"><code>countUp() + magnetic</code><button class="replay" data-replay-count><i data-lucide="rotate-ccw"></i></button></div><p>Números contam; card segue o mouse.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== COMPOSIÇÃO ============================== -->
+  <section class="block" id="composicao">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-index">06 / COMPOSIÇÃO</div>
+        <div>
+          <h2 class="sec-title">A plataforma no <em>terminal</em></h2>
+          <p class="sec-desc">Sidebar recolhível (clique em ⟨⟨), painel de mercado em grade de 4 colunas e console de chat com a telemetria do pipeline. Clique em uma sugestão para ver o fluxo dos agentes.</p>
+        </div>
+      </div>
+    </div>
+    <div class="wrap reveal">
+      <div class="app">
+        <aside class="side" id="app-side">
+          <div class="side-head"><div class="mark"><i></i></div><span class="name">NEWS·ANALYTICS</span><button class="collapse" id="collapse" aria-label="Recolher"><i data-lucide="chevrons-left"></i></button></div>
+          <div class="side-group">Plataforma</div>
+          <a class="side-link active"><i data-lucide="layout-dashboard"></i><span>Painel</span></a>
+          <a class="side-link"><i data-lucide="message-square-text"></i><span>Chat da redação</span><span class="count">3</span></a>
+          <a class="side-link"><i data-lucide="newspaper"></i><span>Matérias</span><span class="count">24</span></a>
+          <a class="side-link"><i data-lucide="star"></i><span>Watchlist</span><span class="count">8</span></a>
+          <a class="side-link"><i data-lucide="landmark"></i><span>Indicadores</span></a>
+          <a class="side-link"><i data-lucide="calculator"></i><span>Simulador RF</span></a>
+          <div class="side-group">Classes de ativo</div>
+          <a class="side-link"><span class="tag-dot" style="background: var(--qt-cyan)"></span><span>Renda variável</span><span class="count">12</span></a>
+          <a class="side-link"><span class="tag-dot" style="background: var(--qt-up)"></span><span>Renda fixa</span><span class="count">7</span></a>
+          <a class="side-link"><span class="tag-dot" style="background: var(--qt-violet)"></span><span>Fundos & FIIs</span><span class="count">5</span></a>
+          <a class="side-link"><span class="tag-dot" style="background: var(--qt-warn)"></span><span>Câmbio & cripto</span><span class="count">2</span></a>
+          <div class="quota">
+            <div class="t-label">Cota Groq · hoje</div>
+            <div class="bar"><i id="quota-bar"></i></div>
+            <div style="display: flex; justify-content: space-between; font-family: var(--qt-font-mono); font-size: 11px"><span>148k / 200k</span><span style="color: var(--qt-warn)">74%</span></div>
+          </div>
+          <div class="user"><div class="avatar">GM</div><div class="user-meta"><div style="font-size: 13px">Guilherme M.</div><div class="t-label" style="font-size: 9px">Investidor · Pro</div></div></div>
+        </aside>
+
+        <div class="app-main">
+          <div class="app-top">
+            <div class="crumbs">Plataforma / <b>Painel</b></div>
+            <div class="input search"><i data-lucide="search" style="color: var(--qt-text-3)"></i><input placeholder="Buscar ativo, notícia…"><kbd>⌘K</kbd></div>
+            <button class="btn icon sm" aria-label="Notificações"><i data-lucide="bell"></i></button>
+          </div>
+          <div class="tape" id="tape-app"><div class="tape-track"></div></div>
+          <div class="app-body">
+            <div class="app-dash" id="app-dash">
+              <div class="hud kpi mini-kpi"><div class="hud-title">Ibovespa</div><div class="value">169.185</div><div class="delta up-t">▲ 0,84%</div></div>
+              <div class="hud kpi mini-kpi"><div class="hud-title">Dólar</div><div class="value">R$ 5,50</div><div class="delta down-t">▼ 0,32%</div></div>
+              <div class="hud kpi mini-kpi"><div class="hud-title">Selic</div><div class="value">13,75%</div><div class="delta" style="color: var(--qt-text-3)">= mantida</div></div>
+              <div class="hud kpi mini-kpi"><div class="hud-title">IPCA 12m</div><div class="value">4,58%</div><div class="delta up-t">▼ 0,12 p.p.</div></div>
+              <div class="hud span4"><div class="hud-title"><i data-lucide="activity"></i>Ibovespa · intradiário<span class="live"><span class="dot blink"></span>Ao vivo</span></div><div class="chart-wrap" id="app-chart"></div></div>
+              <div class="hud span2"><div class="hud-title"><i data-lucide="newspaper"></i>Últimas matérias</div>
+                <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px">
+                  <div><span class="badge cyan" style="height: 20px; font-size: 10px">RF</span> <b style="font-weight: 500">Copom mantém Selic e sinaliza cautela</b><div class="t-label" style="font-size: 9px; margin-top: 2px">há 12 min · 5 fontes · V5</div></div>
+                  <div><span class="badge up" style="height: 20px; font-size: 10px">RV</span> <b style="font-weight: 500">Petrobras sobe com dividendos extras</b><div class="t-label" style="font-size: 9px; margin-top: 2px">há 1 h · 4 fontes · V5</div></div>
+                  <div><span class="badge warn" style="height: 20px; font-size: 10px">FX</span> <b style="font-weight: 500">Dólar recua após payroll fraco</b><div class="t-label" style="font-size: 9px; margin-top: 2px">há 3 h · 3 fontes · V4</div></div>
+                </div>
+              </div>
+              <div class="hud span2"><div class="hud-title"><i data-lucide="calculator"></i>Simulador renda fixa</div>
+                <div style="display: flex; justify-content: space-between" class="t-label"><span>R$ 10.000 · 12 meses</span><span>100% CDI</span></div>
+                <div class="t-data" style="font-size: 26px; margin: 8px 0" id="sim-out">R$ 11.092</div>
+                <input class="range" type="range" min="1" max="60" value="12" id="sim-months">
+                <div class="t-label" style="margin-top: 8px" id="sim-meta">IR 20% · líquido +10,92%</div>
+              </div>
+            </div>
+            <div class="app-chat">
+              <div class="chat-head">
+                <div class="hud-title" style="margin: 0"><i data-lucide="terminal"></i>Console da redação</div>
+                <div class="seg" data-seg><span class="thumb"></span><button class="active">V5</button><button>V4</button><button>V3</button><button>V2</button><button>V1</button></div>
+              </div>
+              <div class="chat-log" id="chat-log">
+                <div class="msg ai"><div class="who">AI</div><div class="body"><div class="meta">V5 · Investidor</div>Pergunte sobre um ativo, indicador ou notícia. Eu pesquiso, apuro, checo e explico com dados reais.</div></div>
+                <div class="suggestions" id="sugg">
+                  <button class="suggestion">Copom e a renda fixa</button><button class="suggestion">Por que PETR4 oscilou?</button><button class="suggestion">FIIs com Selic alta</button>
+                </div>
+              </div>
+              <div class="chat-input"><div class="input"><span class="prompt">&gt;</span><input placeholder="Pergunte sobre o mercado…" id="chat-in"><kbd>↵</kbd></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="wrap" style="padding: 48px 32px; display: flex; justify-content: space-between; font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-text-3); letter-spacing: 0.14em">
+    <span>QUANTUM TERMINAL · DS 01</span><span>NEWS ANALYTICS PLATFORM · CONTEÚDO INFORMATIVO</span>
+  </footer>
+</main>
+<div class="toast-zone" id="toasts"></div>
+
+<script>
+/* =========================== Utilitários =========================== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (n, d = 2) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rng(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+function walk(n, start, vol, seed, drift = 0) { const r = rng(seed); const out = [start]; for (let i = 1; i < n; i++) out.push(out[i - 1] * (1 + (r() - 0.5 + drift) * vol)); return out; }
+
+/* =========================== Dados de exemplo =========================== */
+const ATIVOS = [
+  ['PETR4', 'Petrobras PN', 44.84, 2.31], ['VALE3', 'Vale ON', 61.20, -0.87], ['ITUB4', 'Itaú Unibanco PN', 38.12, 0.54],
+  ['BBAS3', 'Banco do Brasil ON', 27.45, -1.12], ['WEGE3', 'WEG ON', 52.30, 1.76], ['MXRF11', 'Maxi Renda FII', 9.87, 0.10],
+  ['IVVB11', 'iShares S&P 500', 389.10, 0.42], ['BTC', 'Bitcoin (US$)', 98450, -2.04], ['USD', 'Dólar (R$)', 5.50, -0.32], ['IBOV', 'Ibovespa', 169185, 0.84],
+];
+
+/* =========================== Ticker tape =========================== */
+function fillTape(el) {
+  const items = ATIVOS.map(([t, , p, v]) => `<div class="tape-item"><b>${t}</b><span class="px">${p > 1000 ? fmt(p, 0) : fmt(p)}</span><span class="${v >= 0 ? 'up-t' : 'down-t'}">${v >= 0 ? '▲' : '▼'} ${fmt(Math.abs(v))}%</span></div>`).join('');
+  el.querySelector('.tape-track').innerHTML = items + items;
+}
+$$('.tape').forEach(fillTape);
+
+/* =========================== Swatches =========================== */
+$$('[data-swatches]').forEach((box) => {
+  box.innerHTML = box.dataset.swatches.split(',').map((p) => {
+    const [v, n] = p.split(':'); const val = css(v);
+    return `<div class="swatch" data-val="${val}"><div class="chip" style="background:var(${v});${['--qt-cyan', '--qt-up', '--qt-down'].includes(v) ? `box-shadow:0 0 24px -4px ${val}` : ''}"></div><div class="name">${n}</div><div class="val">${v} · ${val}</div></div>`;
+  }).join('');
+});
+document.addEventListener('click', (e) => {
+  const s = e.target.closest('.swatch'); if (!s) return;
+  navigator.clipboard?.writeText(s.dataset.val); s.classList.add('copied');
+  const v = s.querySelector('.val'); const old = v.textContent; v.textContent = 'copiado ✓';
+  setTimeout(() => { v.textContent = old; s.classList.remove('copied'); }, 1100);
+});
+$('#space-scale').innerHTML = [4, 8, 12, 16, 24, 32, 48, 64].map((n, i) => `<div class="space-bar"><span style="width:56px">--qt-s${i + 1}</span><i style="width:${n * 2}px"></i>${n}px</div>`).join('');
+
+/* =========================== Ícones =========================== */
+const ICONES = ['trending-up', 'trending-down', 'line-chart', 'candlestick-chart', 'bar-chart-3', 'pie-chart', 'wallet', 'landmark', 'coins', 'bitcoin', 'banknote', 'percent', 'newspaper', 'search-check', 'shield-check', 'bot', 'brain-circuit', 'sparkles', 'bell-ring', 'globe-2', 'calendar-clock', 'scale', 'gauge', 'radar'];
+$('#icon-grid').innerHTML = ICONES.map((i) => `<div class="icon-cell"><i data-lucide="${i}"></i>${i}</div>`).join('');
+
+/* =========================== Sparklines / KPIs =========================== */
+function sparkPath(data, w, h, pad = 2) {
+  const min = Math.min(...data), max = Math.max(...data);
+  const pts = data.map((v, i) => [pad + (i / (data.length - 1)) * (w - pad * 2), h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2)]);
+  return { line: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '), pts };
+}
+function spark(data, color, id) {
+  const { line } = sparkPath(data, 200, 44);
+  return `<svg class="spark" viewBox="0 0 200 44" preserveAspectRatio="none"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${line} L198,44 L2,44 Z" fill="url(#${id})"/><path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke" style="filter:drop-shadow(0 0 4px ${color})"/></svg>`;
+}
+const KPIS = [
+  ['Ibovespa', 169185, 0.84, 'pts', 0], ['Dólar PTAX', 5.5013, -0.32, 'R$', 4], ['Selic meta', 13.75, 0, '% a.a.', 2], ['CDI', 13.65, 0.01, '% a.a.', 2],
+];
+$('#kpis').innerHTML = KPIS.map(([n, v, d, u, dec], i) => {
+  const color = d > 0 ? css('--qt-up') : d < 0 ? css('--qt-down') : css('--qt-cyan');
+  return `<div class="hud kpi reveal" style="--d:${i * 80}ms"><div class="hud-title">${n}<span class="live" style="color:var(--qt-text-3)">${u}</span></div>
+  <div class="value" data-count="${v}" data-dec="${dec}">0</div>
+  <div class="delta" style="color:${color}">${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${fmt(Math.abs(d))}% hoje</div>
+  ${spark(walk(40, 100, 0.04, 7 + i * 13, d > 0 ? 0.08 : d < 0 ? -0.08 : 0), color, 'sg' + i)}</div>`;
+}).join('');
+
+/* =========================== Watchlist =========================== */
+$('#watch').innerHTML = `<thead><tr><th>Ativo</th><th class="num">Preço</th><th class="num">Dia</th><th class="num">12 meses</th><th>Tendência</th><th>Classe</th></tr></thead><tbody>${
+  ATIVOS.slice(0, 7).map(([t, n, p, v], i) => {
+    const y = (v * 7.3 + (i % 3) * 4 - 3).toFixed(1); const color = v >= 0 ? css('--qt-up') : css('--qt-down');
+    const cls = t.endsWith('11') ? (t === 'IVVB11' ? 'ETF' : 'FII') : 'Ação';
+    return `<tr><td><div class="asset"><span class="logo">${t.slice(0, 2)}</span><div>${t}<small>${n}</small></div></div></td>
+    <td class="num">R$ ${fmt(p)}</td><td class="num ${v >= 0 ? 'up-t' : 'down-t'}">${v >= 0 ? '+' : ''}${fmt(v)}%</td>
+    <td class="num ${y >= 0 ? 'up-t' : 'down-t'}">${y >= 0 ? '+' : ''}${y.replace('.', ',')}%</td>
+    <td style="width:120px">${spark(walk(30, 100, 0.05, 31 + i * 7, v > 0 ? 0.06 : -0.06), color, 'w' + i).replace('class="spark"', 'class="spark" style="height:24px;margin:0"')}</td>
+    <td><span class="badge ${cls === 'Ação' ? 'cyan' : 'neutral'}">${cls}</span></td></tr>`;
+  }).join('')}</tbody>`;
+
+/* =========================== Gráfico principal =========================== */
+function lineChart(el, data, { h = 280, labels = [] } = {}) {
+  const w = el.clientWidth || 800; const pad = { l: 8, r: 56, t: 10, b: 24 };
+  const min = Math.min(...data) * 0.998, max = Math.max(...data) * 1.002;
+  const x = (i) => pad.l + (i / (data.length - 1)) * (w - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - (v - min) / (max - min)) * (h - pad.t - pad.b);
+  const d = data.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => { const v = min + (max - min) * (1 - f); const yy = pad.t + f * (h - pad.t - pad.b);
+    return `<line x1="${pad.l}" x2="${w - pad.r}" y1="${yy}" y2="${yy}"/><text class="chart-axis" x="${w - pad.r + 8}" y="${yy + 3}">${fmt(v, 0)}</text>`; }).join('');
+  const xl = labels.map((l, i) => `<text class="chart-axis" x="${x(Math.round(i * (data.length - 1) / (labels.length - 1)))}" y="${h - 4}" text-anchor="middle">${l}</text>`).join('');
+  const gid = 'g' + Math.random().toString(36).slice(2, 7);
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="height:${h}px"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css('--qt-cyan')}" stop-opacity=".22"/><stop offset="1" stop-color="${css('--qt-cyan')}" stop-opacity="0"/></linearGradient></defs>
+    <g class="chart-grid">${grid}</g>${xl}<path d="${d} L${x(data.length - 1)},${h - pad.b} L${x(0)},${h - pad.b} Z" fill="url(#${gid})"/>
+    <path class="chart-line" d="${d}"/><line class="chart-cross" y1="${pad.t}" y2="${h - pad.b}"/><circle r="4" fill="${css('--qt-cyan')}" opacity="0" style="filter:drop-shadow(0 0 6px ${css('--qt-cyan')})"/></svg><div class="chart-tip"></div>`;
+  const path = el.querySelector('.chart-line'); const len = path.getTotalLength();
+  if (!reduce) { path.style.strokeDasharray = len; path.style.strokeDashoffset = len; requestAnimationFrame(() => { path.style.transition = 'stroke-dashoffset 1.6s cubic-bezier(.22,1,.36,1)'; path.style.strokeDashoffset = 0; }); }
+  const svg = el.querySelector('svg'), cross = el.querySelector('.chart-cross'), dot = el.querySelector('circle'), tip = el.querySelector('.chart-tip');
+  svg.addEventListener('mousemove', (e) => {
+    const r = svg.getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * w;
+    const i = Math.max(0, Math.min(data.length - 1, Math.round(((px - pad.l) / (w - pad.l - pad.r)) * (data.length - 1))));
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.style.opacity = 1;
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(data[i])); dot.setAttribute('opacity', 1);
+    tip.style.opacity = 1; tip.style.left = (x(i) / w) * 100 + '%'; tip.style.top = (y(data[i]) / h) * 100 + '%';
+    const ch = (data[i] / data[0] - 1) * 100; tip.innerHTML = `${fmt(data[i], 0)} pts <span class="${ch >= 0 ? 'up-t' : 'down-t'}">${ch >= 0 ? '+' : ''}${fmt(ch)}%</span>`;
+  });
+  svg.addEventListener('mouseleave', () => { cross.style.opacity = 0; dot.setAttribute('opacity', 0); tip.style.opacity = 0; });
+}
+const RANGES = { '1D': [78, 0.004, 1], '1S': [35, 0.008, 2], '1M': [60, 0.012, 3], '1A': [120, 0.02, 4] };
+function drawMain(k = '1M') { const [n, vol, s] = RANGES[k]; lineChart($('#main-chart'), walk(n, 162000, vol, s, 0.04), { labels: k === '1D' ? ['10h', '12h', '14h', '16h', '17h'] : ['início', '', '', '', 'hoje'] }); }
+$$('#range button').forEach((b) => b.addEventListener('click', () => { $$('#range button').forEach((x) => x.classList.remove('active')); b.classList.add('active'); drawMain(b.textContent); }));
+
+/* Barras + heatmap */
+const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const RET = [1.8, -0.6, 2.4, 1.1, -1.4, 0.9, 3.1, 1.6, -0.3, 2.2, 1.3, 0.7];
+$('#bars').innerHTML = RET.map((v, i) => `<i class="${v < 0 ? 'neg' : ''}" title="${MESES[i]}: ${fmt(v)}%" style="height:${Math.abs(v) / 3.1 * 100}%;transition-delay:${i * 50}ms"></i>`).join('');
+const rh = rng(99);
+$('#heat').innerHTML = Array.from({ length: 63 }, () => { const v = (rh() - 0.45) * 4; const c = v >= 0 ? `rgba(0,255,163,${Math.min(0.9, 0.12 + v / 2.5)})` : `rgba(255,61,113,${Math.min(0.9, 0.12 - v / 2.5)})`;
+  return `<i style="background:${c}" title="${v >= 0 ? '+' : ''}${fmt(v)}%"></i>`; }).join('');
+
+/* =========================== Interações =========================== */
+function initSeg(seg) {
+  const thumb = seg.querySelector('.thumb'); const btns = [...seg.querySelectorAll('button')];
+  const move = (b) => { thumb.style.left = b.offsetLeft + 'px'; thumb.style.width = b.offsetWidth + 'px'; btns.forEach((x) => x.classList.toggle('active', x === b)); };
+  btns.forEach((b) => b.addEventListener('click', () => move(b))); requestAnimationFrame(() => move(seg.querySelector('.active') || btns[0]));
+}
+$$('[data-seg]').forEach(initSeg);
+$$('[data-toggle]').forEach((t) => t.addEventListener('click', () => t.classList.toggle('on')));
+$('#selic-range').addEventListener('input', (e) => { $('#selic-out').textContent = fmt(+e.target.value) + '%'; });
+$('#btn-loading').addEventListener('click', (e) => e.preventDefault());
+
+function toast(msg, icon = 'check-circle-2') {
+  const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `<i data-lucide="${icon}" style="color:var(--qt-cyan)"></i>${msg}`;
+  $('#toasts').appendChild(t); lucide.createIcons({ nameAttr: 'data-lucide' });
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 260); }, 2600);
+}
+$('[data-toast]').addEventListener('click', () => toast('Matéria salva em output/V5/'));
+
+/* Simulador RF (IR regressivo) */
+function sim() {
+  const m = +$('#sim-months').value; const bruto = 10000 * Math.pow(1.1365, m / 12); const rend = bruto - 10000; const dias = m * 30;
+  const ir = dias <= 180 ? 0.225 : dias <= 360 ? 0.2 : dias <= 720 ? 0.175 : 0.15; const liq = bruto - rend * ir;
+  $('#sim-out').textContent = 'R$ ' + fmt(liq, 0); $('#sim-meta').textContent = `${m} meses · IR ${fmt(ir * 100, 1)}% · líquido +${fmt((liq / 10000 - 1) * 100)}%`;
+}
+$('#sim-months').addEventListener('input', sim); sim();
+
+/* Sidebar */
+$('#collapse').addEventListener('click', () => $('#app-side').classList.toggle('collapsed'));
+
+/* Count-up */
+function countUp(el, to, dec = 0, dur = 1400) {
+  if (reduce) { el.textContent = fmt(to, dec); return; }
+  const t0 = performance.now(); const step = (t) => { const p = Math.min(1, (t - t0) / dur); const e = 1 - Math.pow(1 - p, 4); el.textContent = fmt(to * e, dec); if (p < 1) requestAnimationFrame(step); }; requestAnimationFrame(step);
+}
+
+/* Reveal + scroll progress */
+const io = new IntersectionObserver((ents) => ents.forEach((en) => {
+  if (!en.isIntersecting) return; en.target.classList.add('in-view');
+  en.target.querySelectorAll?.('[data-count]').forEach((c) => countUp(c, +c.dataset.count, +(c.dataset.dec || 0)));
+  if (en.target.matches('[data-count]')) countUp(en.target, +en.target.dataset.count);
+  io.unobserve(en.target);
+}), { threshold: 0.15 });
+$$('.reveal, .kinetic, .hud, #bars-card').forEach((el) => io.observe(el));
+addEventListener('scroll', () => { const h = document.documentElement; $('#scroll-progress').style.transform = `scaleX(${h.scrollTop / (h.scrollHeight - h.clientHeight)})`; }, { passive: true });
+
+/* Magnetic */
+$$('[data-magnetic]').forEach((c) => {
+  c.addEventListener('mousemove', (e) => { const r = c.getBoundingClientRect(); const mx = (e.clientX - r.left - r.width / 2) / r.width, my = (e.clientY - r.top - r.height / 2) / r.height;
+    c.style.transform = `perspective(600px) rotateY(${mx * 8}deg) rotateX(${-my * 8}deg) translate3d(${mx * 6}px, ${my * 6}px, 0)`; });
+  c.addEventListener('mouseleave', () => (c.style.transform = ''));
+});
+
+/* Demos de movimento */
+function typewriter(el, text, speed = 28) { el.innerHTML = ''; let i = 0; const tick = () => { el.innerHTML = text.slice(0, i) + '<span class="caret"></span>'; if (i++ < text.length) setTimeout(tick, speed); }; tick(); }
+typewriter($('#m-type'), 'Selic mantida em 13,75%…');
+$('[data-replay-type]').addEventListener('click', () => typewriter($('#m-type'), 'Selic mantida em 13,75%…'));
+$('[data-replay-count]').addEventListener('click', () => countUp($('#m-count'), 169185));
+setTimeout(() => countUp($('#m-count'), 169185), 600);
+$$('[data-replay]').forEach((b) => b.addEventListener('click', () => { const el = document.getElementById(b.dataset.replay); el.classList.remove('in-view'); void el.offsetWidth; setTimeout(() => el.classList.add('in-view'), 60); }));
+
+/* Chat + pipeline (demo) */
+const ETAPAS = ['Research Team', 'Apuração (loop)', 'Validação de fontes', 'Fact check + dados', 'Analista de investimentos', 'Redação', 'Exportação'];
+function runDemo(q) {
+  const log = $('#chat-log'); $('#sugg')?.remove();
+  log.insertAdjacentHTML('beforeend', `<div class="msg user"><div class="who">GM</div><div class="body"><div class="meta">você</div>${q}</div></div>`);
+  const id = 'p' + Date.now();
+  log.insertAdjacentHTML('beforeend', `<div class="hud" style="padding:14px"><div class="hud-title" style="margin-bottom:6px"><i data-lucide="cpu"></i>Telemetria do pipeline</div><div class="pipeline" id="${id}">${ETAPAS.map((e) => `<div class="step"><span class="node"><i data-lucide="circle"></i></span><span class="label">${e}</span><span class="time">—</span></div>`).join('')}</div></div>`);
+  lucide.createIcons(); log.scrollTop = log.scrollHeight;
+  const steps = $$('#' + id + ' .step'); let i = 0;
+  const next = () => {
+    if (i > 0) { const s = steps[i - 1]; s.classList.remove('run'); s.classList.add('done'); s.querySelector('.node').innerHTML = '<i data-lucide="check"></i>'; s.querySelector('.time').textContent = (2 + Math.random() * 40).toFixed(0) + 's'; }
+    if (i < steps.length) { steps[i].classList.add('run'); steps[i].querySelector('.node').innerHTML = '<i data-lucide="loader"></i>'; lucide.createIcons(); i++; setTimeout(next, 650); }
+    else {
+      lucide.createIcons();
+      log.insertAdjacentHTML('beforeend', `<div class="msg ai"><div class="who">AI</div><div class="body"><div class="meta">V5 · 5 fontes · confiança alta</div><h4>Copom mantém Selic em 13,75% e reforça cautela</h4><span id="${id}t"></span></div></div>`);
+      typewriter($('#' + id + 't'), 'O Comitê de Política Monetária manteve a taxa básica pela terceira reunião seguida, em linha com o consenso [1]. Para o investidor, pós-fixados atrelados ao CDI seguem rendendo cerca de 13,65% ao ano [2]…', 14);
+      log.scrollTop = log.scrollHeight;
+    }
+  };
+  next();
+}
+document.addEventListener('click', (e) => { const s = e.target.closest('.suggestion'); if (s) runDemo(s.textContent); });
+$('#chat-in').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { runDemo(e.target.value.trim()); e.target.value = ''; } });
+
+/* =========================== Campo de partículas (hero) =========================== */
+(function particles() {
+  const c = $('#particles'); const ctx = c.getContext('2d'); let w, h, pts = []; const mouse = { x: -999, y: -999 };
+  const resize = () => { w = c.width = c.offsetWidth * devicePixelRatio; h = c.height = c.offsetHeight * devicePixelRatio;
+    const n = Math.min(140, Math.floor((c.offsetWidth * c.offsetHeight) / 9000));
+    pts = Array.from({ length: n }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, up: Math.random() > 0.3 })); };
+  resize(); addEventListener('resize', resize);
+  c.parentElement.addEventListener('mousemove', (e) => { const r = c.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * devicePixelRatio; mouse.y = (e.clientY - r.top) * devicePixelRatio; });
+  const link = 130 * devicePixelRatio;
+  const frame = () => {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of pts) {
+      p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > w) p.vx *= -1; if (p.y < 0 || p.y > h) p.vy *= -1;
+      const dx = p.x - mouse.x, dy = p.y - mouse.y, dm = Math.hypot(dx, dy);
+      if (dm < 160 * devicePixelRatio) { p.x += dx / dm * 0.9; p.y += dy / dm * 0.9; }
+    }
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d < link) { ctx.strokeStyle = `rgba(34,211,238,${(1 - d / link) * 0.25})`; ctx.lineWidth = devicePixelRatio * 0.6; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    }
+    for (const p of pts) { ctx.fillStyle = p.up ? 'rgba(34,211,238,.9)' : 'rgba(0,255,163,.8)'; ctx.fillRect(p.x - devicePixelRatio, p.y - devicePixelRatio, 2 * devicePixelRatio, 2 * devicePixelRatio); }
+    if (!reduce) requestAnimationFrame(frame);
+  };
+  frame();
+})();
+
+/* =========================== Init =========================== */
+lucide.createIcons();
+drawMain();
+lineChart($('#app-chart'), walk(80, 168000, 0.003, 11, 0.06), { h: 200, labels: ['10h', '12h', '14h', '16h', '17h'] });
+setTimeout(() => ($('#quota-bar').style.width = '74%'), 400);
+addEventListener('resize', () => { drawMain($('#range .active').textContent); });
+</script>
+</body>
+</html>
