@@ -28,12 +28,13 @@ O projeto também é um laboratório de **engenharia de agentes**: cada versão 
 | Agentes | `agno==2.4.8` (`Agent`, `Team`, `Workflow`, `Step`, `Loop`) |
 | LLM | Groq, `openai/gpt-oss-20b` por padrão (`GROQ_MODEL_ID`) |
 | Busca | `WebSearchTools` do Agno sobre `ddgs`, backend `auto` (`BUSCA_BACKEND`) |
-| Dados de mercado | `yfinance` (B3 com sufixo `.SA`, EUA, índices, câmbio, cripto, commodities) + API SGS do Banco Central |
-| Interface | Streamlit (chat + painel de mercado) |
-| Testes | `pytest` + `streamlit.testing.v1.AppTest`; CI no GitHub Actions |
+| Dados de mercado | API pública de gráficos do Yahoo Finance, chamada direto por `urllib` (endpoints `spark` em lote e `chart` intradiário; B3 com sufixo `.SA`, EUA, índices, câmbio, cripto, commodities) + API SGS do Banco Central |
+| API | FastAPI + Uvicorn (`python -m api`), JSON + Server-Sent Events |
+| Interface | **Quantum Terminal**: HTML, CSS e JavaScript puros em `web/`, sem build (CDN: Google Fonts, Lucide 0.469.0, marked 12.0.2, DOMPurify 3.1.6) |
+| Testes | `pytest` + `fastapi.testclient.TestClient`; CI no GitHub Actions |
 | Configuração | `.env` (`GROQ_API_KEY`; opcionais `GROQ_MODEL_ID`, `BUSCA_BACKEND`), modelo em `.env.example` |
 
-`fastapi` é obrigatório: `agno.workflow` o importa.
+`fastapi` também é exigido pelo próprio `agno.workflow`. O **yfinance foi removido**: ele busca um cookie/crumb do Yahoo que dava timeout (~30 s por consulta) e, com consultas paralelas, derrubava o DNS. Os endpoints diretos respondem em < 0,5 s.
 
 ---
 
@@ -53,11 +54,17 @@ News_Analytics_Platform/
 ├── skills/                      # SKILL.md com frontmatter YAML
 │   ├── pesquisa-noticias/  apuracao-fontes/  verificacao-factual/
 │   ├── analise-mercado/    redacao-jornalistica/
-├── ui/
-│   ├── app.py                   # chat + seletor de versão + sugestões
+├── api/
+│   ├── servidor.py              # FastAPI: /api/* + serve web/ ("/" e "/static")
+│   ├── execucao.py              # Tarefa, GerenciadorDeTarefas, executar(): eventos do pipeline
 │   ├── registry.py              # VERSOES, VERSAO_PADRAO="V5", carregar_workflow (lazy)
-│   └── components/sidebar.py    # painel de mercado + detalhes da versão + nova conversa
-├── tests/                       # conftest (mercado simulado), comum, passos, ferramentas, skills, versões, UI
+│   └── __main__.py              # python -m api [--host] [--port] [--reload]
+├── web/
+│   ├── index.html               # app de página única (sidebar, painel, matérias, watchlist, simulador, console)
+│   ├── css/quantum.css          # tokens e componentes do Quantum Terminal
+│   └── js/app.js                # navegação, mercado, gráficos SVG, simulador, matérias, chat via SSE
+├── design/                      # design_system1-3.html + referências (DS/, components/)
+├── tests/                       # conftest (mercado simulado), api, comum, passos, ferramentas, skills, versões
 ├── .github/workflows/testes.yml # CI: Ubuntu/Windows × Python 3.12/3.13
 ├── output/                      # matérias geradas (ignorado pelo git)
 └── .env.example / .python-version / pyproject.toml / uv.lock
@@ -80,8 +87,12 @@ News_Analytics_Platform/
 
 ### `agente/ferramentas_mercado.py`
 - Funções puras: `normalizar_ticker` (`petr4` → `PETR4.SA`; apelidos como IBOV, DOLAR, BITCOIN, BRENT), `aliquota_ir` (tabela regressiva de 22,5% a 15%), `simular_renda_fixa`, `resumir_historico`.
-- Acesso a dados, isolado para os testes: `_historico(ticker, periodo)` (yfinance) e `_buscar_serie_bcb(codigo)` (SGS: 432 Selic meta, 4389 CDI, 13522 IPCA 12m, 1 PTAX).
-- Alto nível: `obter_cotacao`, `obter_indicadores`, `obter_panorama`. Nunca levantam exceção; em caso de falha devolvem `{"erro": ...}`.
+- Acesso a dados, isolado para os testes:
+  - `_yahoo_json(url)`: urllib com User-Agent, timeout de 12 s e **semáforo de 4 conexões** (`_limite_yahoo`);
+  - `_historicos_lote(tickers, periodo)`: fechamentos diários de **vários ativos numa requisição** (endpoint `spark`, até 20 por chamada); `_historico` usa o lote;
+  - `_serie(ticker, periodo, intervalo)`: pontos com horário no fuso da bolsa (endpoint `chart`), para os gráficos;
+  - `_buscar_serie_bcb(codigo)` → `ultimo_valor_sgs(codigo, get_json)`: SGS 432 Selic, 4389 CDI, 13522 IPCA 12m, 1 PTAX. **Para a 4389, `ultimos/1` responde HTTP 304 sem corpo**; o fallback consulta os últimos 120 dias por intervalo de datas.
+- Alto nível: `obter_cotacoes(lista)` (lote, mantém a ordem), `obter_cotacao`, `obter_historico(ticker, periodo)` (`PERIODOS_GRAFICO`: 1d/5m, 5d/30m, 1mo, 6mo, 1y), `obter_indicadores`, `obter_panorama`. Nunca levantam exceção; em caso de falha devolvem `{"erro": ...}`.
 - `MercadoFinanceiroTools` (Toolkit): `cotacao_ativo`, `indicadores_economicos`, `panorama_mercado`, `simular_investimento_renda_fixa`, todas retornando JSON compacto.
 
 ---
@@ -123,16 +134,39 @@ News_Analytics_Platform/
 
 ---
 
-## 7. Interface (chat)
+## 7. API e interface (Quantum Terminal)
 
-- `ui/app.py`:
-  - título "📈 Notícias para Investidores";
-  - `st.segmented_control` (key `versao`) para trocar a versão a qualquer momento;
-  - histórico em `st.session_state.mensagens` (`papel`, `conteudo`, `versao`);
-  - botões de sugestão (keys `sugestao_0..3`, via `tema_sugerido`);
-  - erros de exceção ou de `status` ERROR aparecem no chat com `mensagem_erro_amigavel`.
-- Painel de mercado na sidebar: `carregar_painel()` com `st.cache_data(ttl=900)` chama `obter_panorama` e `obter_indicadores` (métricas com variação do dia; Selic, CDI, IPCA e PTAX com data).
-- `ui/registry.py`: `VERSOES` (V5..V1 → `Versao(rotulo, modulo, objeto, descricao, pipeline)`), `VERSAO_PADRAO = "V5"` e `carregar_workflow` com `lru_cache` (import sob demanda).
+O Streamlit foi substituído por uma API FastAPI que também serve o front-end em HTML/CSS/JS puro, seguindo o design system escolhido (`design/design_system1.html`, **Quantum Terminal**).
+
+### Rotas (`api/servidor.py`)
+
+| Rota | Descrição |
+|---|---|
+| `GET /` | `web/index.html` (estáticos em `/static`) |
+| `GET /api/status` | chave configurada?, modelo, backend de busca, tarefas em execução |
+| `GET /api/versoes` | V1–V5 (`registry.VERSOES`, sem detalhes internos) e a padrão |
+| `GET /api/mercado` | `panorama` + `indicadores` (cache de 15 min) |
+| `GET /api/mercado/cotacoes?tickers=A,B` | até 20 tickers; os que não estão em cache são buscados **em um único lote** (cache de 5 min por ticker) |
+| `GET /api/mercado/historico/{ticker}?periodo=` | `1d`, `5d`, `1mo`, `6mo` ou `1y`: pontos para o gráfico (cache de 5 min) |
+| `POST /api/simulacao/renda-fixa` | `{valor, taxa_anual_pct, meses, isento_ir}` validados por Pydantic |
+| `POST /api/perguntas` | `{tema, versao}` → `202 {id, etapas}`; 503 sem `GROQ_API_KEY` |
+| `GET /api/perguntas/{id}` | estado completo (eventos, conteúdo, erro) |
+| `GET /api/perguntas/{id}/eventos` | **Server-Sent Events** com o progresso; `: ping` a cada 15 s |
+| `GET /api/materias` e `GET /api/materias/{versao}/{arquivo}` | matérias em `output/V*/*.md`, com validação contra *path traversal* |
+| `GET /api/docs` | Swagger da API |
+
+- **Cache** em memória (`Cache`): **não guarda respostas com `erro`, nem parciais** (ex.: só o CDI falhou), para tentar de novo na próxima chamada.
+- **Execução** (`api/execucao.py`): cada pergunta é uma `Tarefa` numa thread. `executar()` roda o workflow com `stream=True, stream_events=True` e traduz os eventos do Agno de **primeiro nível** (`StepStarted/Completed`, `LoopExecutionStarted/Completed`, `LoopIterationStarted`, `StepErrorEvent`, `WorkflowCompleted/ErrorEvent`) em eventos simples: `inicio` (com as etapas e os `ROTULOS`), `etapa` (iniciada/concluída/erro + duração), `tentativa` (iteração do loop), `conteudo` (markdown), `erro` (via `mensagem_erro_amigavel`) e `fim`. Passos internos do loop (ex.: `apuracao`) são ignorados. Para um `Agent` (V1), há uma etapa só: "Agente único".
+
+### Front-end (`web/`)
+
+- Página única com rotas por hash (`#painel`, `#materias`, `#watchlist`, `#simulador`); sidebar recolhível; fita de cotações; relógio do pregão da B3 (10h–17h55 BRT, dias úteis).
+- **Painel**: KPIs (Ibovespa e dólar com *sparkline*, Selic com CDI, IPCA com leitura da meta), gráfico SVG do Ibovespa (1D/5D/1M/6M/1A, com mira e tooltip), últimas matérias, mini simulador e watchlist.
+- **Console da redação**: seletor V1–V5 (bloqueado durante a execução), sugestões, atalhos na sidebar ("Perguntar sobre"), cronômetro e **telemetria do pipeline**, com as etapas reais acendendo via SSE. A matéria chega renderizada (marked com `breaks: true` + DOMPurify; os links abrem em nova aba).
+- **Watchlist** salva no `localStorage` (padrão: PETR4, VALE3, ITUB4, BBAS3, WEGE3, MXRF11, IVVB11; máx. 20), **Simulador** completo usando a API e **Matérias** com lista e leitor.
+- Preferências locais: versão, watchlist e sidebar recolhida (`localStorage`, com `try/catch`).
+- Segurança: todo texto vindo da API passa por `esc()`, e o markdown gerado pelo LLM é sanitizado com DOMPurify.
+- Responsivo: até 1080 px o console vira gaveta; até 760 px a sidebar também. Respeita `prefers-reduced-motion`.
 
 ---
 
@@ -141,15 +175,16 @@ News_Analytics_Platform/
 ```bash
 uv sync
 cp .env.example .env                          # GROQ_API_KEY
-uv run python -m streamlit run ui/app.py
+uv run python -m api                          # http://127.0.0.1:8000
 uv run python -m agente.agente_curador_v5
-uv run python -m pytest                       # ~92 testes, ~3 s, sem rede
+uv run python -m pytest                       # 115 testes, ~1 s, sem rede
 ```
 
 - As versões rodam **como módulo** a partir da raiz (`python -m agente.<arquivo>`).
 - Testes:
-  - `tests/conftest.py` define `GROQ_API_KEY` fictícia e um fixture **autouse** `mercado_simulado`, que substitui `_historico` e `_buscar_serie_bcb`. Nenhum teste acessa a rede.
-  - Cobertura: ferramentas de mercado (tickers, IR, simulação, cotação, indicadores, falhas), passos (erro real do Groq, mensagens), estrutura de V2 a V5, busca sem `duckduckgo` e com limite, skill injetada na V5, contratos das skills e UI (painel, sugestões, troca de versão, erros, nova conversa, chave ausente).
+  - `tests/conftest.py` define `GROQ_API_KEY` fictícia e um fixture **autouse** `mercado_simulado`, que substitui `_historicos_lote`, `_serie` e `_buscar_serie_bcb`. O fixture `funcoes_reais` dá acesso às implementações reais, para testar o *parsing* com `_yahoo_json` simulado. Nenhum teste acessa a rede.
+  - `test_api.py`: front servido, status, versões, mercado (cache, lote, validações), histórico, simulação, matérias (inclusive *path traversal*) e perguntas com **workflows falsos que imitam os eventos do Agno** (etapas, loop, erro, SSE até o fim, agente único, chave ausente).
+  - Demais arquivos: ferramentas de mercado (tickers, IR, simulação, *parsing* de spark/chart, lote, fallback do BCB), passos, estrutura de V2 a V5, busca e skills.
 - CI: `.github/workflows/testes.yml` (push na `main`, PRs, manual).
 
 ---
@@ -168,7 +203,7 @@ uv run python -m pytest                       # ~92 testes, ~3 s, sem rede
 
 A máquina de desenvolvimento (Windows 11 Home) tem o **Smart App Control ativado**, que bloqueia binários sem assinatura:
 - o Python baixado pelo uv: `DLL load failed while importing unicodedata/_socket: Uma política de Controle de Aplicativo bloqueou este arquivo`;
-- os `.exe` de `.venv\Scripts` (ex.: `streamlit.exe`): `os error 4551`.
+- os `.exe` de `.venv\Scripts` (ex.: `uvicorn.exe`): `os error 4551`. Por isso a API sobe com `python -m api`.
 
 **Solução:** usar o Python oficial (assinado pela PSF, `py install 3.13`), `python-preference = "only-system"` e sempre `python -m <ferramenta>`. Se o `.venv` foi criado com o Python do uv, apague-o e rode `uv sync`.
 
@@ -176,7 +211,8 @@ A máquina de desenvolvimento (Windows 11 Home) tem o **Smart App Control ativad
 
 ## 11. Pontos em aberto
 
-1. Execuções ponta a ponta com LLM são lentas no plano gratuito (§9). Considerar streaming de progresso por etapa na UI.
-2. Fundos de investimento tradicionais (dados da CVM) ainda não têm ferramenta própria; FIIs e ETFs são cobertos pelo `cotacao_ativo`.
-3. Os testes não avaliam a qualidade das matérias. Uma suíte opcional de avaliação com LLM (fora do CI) seria o próximo passo.
-4. Agentes são definidos por versão de propósito (comparabilidade); o compartilhado fica em `comum.py`, `passos.py` e `ferramentas_mercado.py`.
+1. Execuções ponta a ponta com LLM são lentas no plano gratuito (§9); a UI mostra o progresso por etapa, mas o tempo total continua alto.
+2. As tarefas ficam só em memória: reiniciar o servidor perde as perguntas em andamento (as matérias já salvas em `output/` permanecem). Não há autenticação: a API sobe em `127.0.0.1` por padrão.
+3. Fundos de investimento tradicionais (dados da CVM) ainda não têm ferramenta própria; FIIs e ETFs são cobertos pelo `cotacao_ativo`.
+4. Os testes não avaliam a qualidade das matérias. Uma suíte opcional de avaliação com LLM (fora do CI) seria o próximo passo. O JavaScript do front não tem testes automatizados; foi verificado no Chrome headless (sem erros de console, fluxo do chat com workflow falso, 390/900/1600 px).
+5. Agentes são definidos por versão de propósito (comparabilidade); o compartilhado fica em `comum.py`, `passos.py` e `ferramentas_mercado.py`.

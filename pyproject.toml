@@ -11,8 +11,7 @@ dependencies = [
     "fastapi==0.129.0",
     "groq>=1.7.0",
     "python-dotenv>=1.2.3",
-    "streamlit>=1.63.0",
-    "yfinance>=1.8.0",
+    "uvicorn>=0.30",
 ]
 
 [tool.uv]
@@ -22,7 +21,7 @@ python-preference = "only-system"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "ui"]
+pythonpath = ["."]
 addopts = "-q"
 
 [dependency-groups]

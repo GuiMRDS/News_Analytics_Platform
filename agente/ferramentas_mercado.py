@@ -1,8 +1,8 @@
 """Ferramentas de dados do mercado financeiro para os agentes.
 
 Fontes gratuitas, sem chave de API:
-- Yahoo Finance (yfinance): ações e FIIs da B3 (sufixo .SA), BDRs, índices,
-  câmbio, cripto e commodities.
+- Yahoo Finance (API pública de gráficos, endpoints spark/chart): ações e FIIs
+  da B3 (sufixo .SA), BDRs, índices, câmbio, cripto e commodities.
 - Banco Central do Brasil, SGS (api.bcb.gov.br): Selic, CDI, IPCA e dólar PTAX.
 
 Todas as ferramentas devolvem JSON compacto, para caber no limite de
@@ -12,6 +12,8 @@ tokens do modelo, e nunca levantam exceção: em caso de falha retornam
 
 import json
 import re
+import threading
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -138,13 +140,51 @@ def resumir_historico(fechamentos: list[float]) -> dict:
 # Acesso a dados (isolado para facilitar testes)
 # ---------------------------------------------------------------------------
 
-def _historico(ticker_yahoo: str, periodo: str = "1y") -> list[float]:
-    import yfinance as yf  # import tardio: só quando a ferramenta é usada
+# API pública de gráficos do Yahoo Finance. Chamada direta (sem yfinance): o
+# yfinance busca um cookie/crumb que costuma dar timeout e somar ~30 s por
+# consulta; os endpoints abaixo respondem em < 0,5 s e não exigem cookie.
+YAHOO_SPARK = "https://query1.finance.yahoo.com/v8/finance/spark"
+YAHOO_CHART = "https://query2.finance.yahoo.com/v8/finance/chart/"
+MAX_SIMBOLOS_SPARK = 20
+_limite_yahoo = threading.BoundedSemaphore(4)  # evita rajadas que derrubam o DNS/geram bloqueio
 
-    dados = yf.Ticker(ticker_yahoo).history(period=periodo, auto_adjust=False)
-    if dados is None or dados.empty:
+
+def _yahoo_json(url: str) -> dict:
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (news-analytics-platform)", "Accept": "application/json"})
+    with _limite_yahoo, urllib.request.urlopen(req, timeout=12) as resposta:
+        return json.load(resposta)
+
+
+def _historicos_lote(tickers_yahoo: list[str], periodo: str = "1y") -> dict[str, list[float]]:
+    """Fechamentos diários de vários ativos em poucas requisições (endpoint spark)."""
+    resultado: dict[str, list[float]] = {}
+    for i in range(0, len(tickers_yahoo), MAX_SIMBOLOS_SPARK):
+        lote = tickers_yahoo[i:i + MAX_SIMBOLOS_SPARK]
+        simbolos = urllib.parse.quote(",".join(lote), safe=",")
+        dados = _yahoo_json(f"{YAHOO_SPARK}?symbols={simbolos}&range={periodo}&interval=1d")
+        for simbolo, serie in (dados or {}).items():
+            fechamentos = (serie or {}).get("close") or []
+            resultado[simbolo] = [float(v) for v in fechamentos if v is not None]
+    return resultado
+
+
+def _historico(ticker_yahoo: str, periodo: str = "1y") -> list[float]:
+    return _historicos_lote([ticker_yahoo], periodo).get(ticker_yahoo, [])
+
+
+def _serie(ticker_yahoo: str, periodo: str, intervalo: str) -> list[tuple[str, float]]:
+    """Série (data ISO no fuso da bolsa, fechamento) para gráficos (endpoint chart)."""
+    from datetime import datetime, timedelta, timezone
+
+    dados = _yahoo_json(f"{YAHOO_CHART}{urllib.parse.quote(ticker_yahoo)}?range={periodo}&interval={intervalo}")
+    resultados = ((dados or {}).get("chart") or {}).get("result") or []
+    if not resultados:
         return []
-    return [float(v) for v in dados["Close"].dropna().tolist()]
+    r = resultados[0]
+    fuso = timezone(timedelta(seconds=(r.get("meta") or {}).get("gmtoffset", 0)))
+    tempos = r.get("timestamp") or []
+    fechamentos = ((r.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    return [(datetime.fromtimestamp(t, fuso).isoformat(), float(v)) for t, v in zip(tempos, fechamentos) if v is not None]
 
 
 def _moeda(ticker_yahoo: str) -> str:
@@ -153,25 +193,92 @@ def _moeda(ticker_yahoo: str) -> str:
     return "USD"
 
 
-def _buscar_serie_bcb(codigo: int) -> dict:
-    url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados/ultimos/1?formato=json"
-    req = urllib.request.Request(url, headers={"User-Agent": "news-analytics-platform"})
+def _get_json_bcb(url: str) -> list:
+    req = urllib.request.Request(url, headers={"User-Agent": "news-analytics-platform", "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=15) as resposta:
-        dado = json.load(resposta)[-1]
+        return json.load(resposta)
+
+
+def ultimo_valor_sgs(codigo: int, get_json) -> dict:
+    """Último valor de uma série do SGS do Banco Central.
+
+    Para algumas séries (ex.: 4389, CDI anualizado) o endpoint `ultimos/1`
+    responde HTTP 304 sem corpo; nesse caso consultamos os últimos 120 dias
+    por intervalo de datas e usamos o valor mais recente.
+    """
+    from datetime import date, timedelta
+
+    base = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
+    try:
+        dados = get_json(f"{base}/ultimos/1?formato=json")
+    except Exception:  # noqa: BLE001 - qualquer falha: tenta o intervalo de datas
+        hoje = date.today()
+        inicio = hoje - timedelta(days=120)
+        dados = get_json(f"{base}?formato=json&dataInicial={inicio:%d/%m/%Y}&dataFinal={hoje:%d/%m/%Y}")
+    if not dados:
+        raise RuntimeError(f"série {codigo} sem dados")
+    dado = dados[-1]
     return {"valor": float(dado["valor"]), "data": dado["data"]}
+
+
+def _buscar_serie_bcb(codigo: int) -> dict:
+    return ultimo_valor_sgs(codigo, _get_json_bcb)
 
 
 # ---------------------------------------------------------------------------
 # Funções de alto nível (usadas pelas ferramentas e pela UI)
 # ---------------------------------------------------------------------------
 
-def obter_cotacao(ticker: str) -> dict:
-    ticker_yahoo = normalizar_ticker(ticker)
+def obter_cotacoes(tickers: list[str]) -> list[dict]:
+    """Cotações de vários ativos com uma única consulta ao Yahoo (na ordem pedida)."""
+    normalizados = [normalizar_ticker(t) for t in tickers]
     try:
-        resumo = resumir_historico(_historico(ticker_yahoo, "1y"))
+        series = _historicos_lote(list(dict.fromkeys(normalizados)), "1y")
     except Exception as erro:  # noqa: BLE001
-        return {"ticker": ticker_yahoo, "erro": f"cotação indisponível: {erro}"}
-    return {"ticker": ticker_yahoo, "moeda": _moeda(ticker_yahoo), **resumo, "fonte": "Yahoo Finance"}
+        return [{"ticker": t, "erro": f"cotação indisponível: {erro}"} for t in normalizados]
+    cotacoes = []
+    for t in normalizados:
+        try:
+            cotacoes.append({"ticker": t, "moeda": _moeda(t), **resumir_historico(series.get(t, [])), "fonte": "Yahoo Finance"})
+        except ValueError as erro:
+            cotacoes.append({"ticker": t, "erro": f"cotação indisponível: {erro}"})
+    return cotacoes
+
+
+def obter_cotacao(ticker: str) -> dict:
+    return obter_cotacoes([ticker])[0]
+
+
+# Período exibido -> (period, interval) do Yahoo Finance
+PERIODOS_GRAFICO = {
+    "1d": ("1d", "5m"),
+    "5d": ("5d", "30m"),
+    "1mo": ("1mo", "1d"),
+    "6mo": ("6mo", "1d"),
+    "1y": ("1y", "1d"),
+}
+
+
+def obter_historico(ticker: str, periodo: str = "1mo") -> dict:
+    """Pontos para gráfico: {ticker, periodo, pontos: [{t, v}], variacao_pct}."""
+    ticker_yahoo = normalizar_ticker(ticker)
+    if periodo not in PERIODOS_GRAFICO:
+        return {"ticker": ticker_yahoo, "erro": f"período inválido: {periodo}"}
+    try:
+        serie = _serie(ticker_yahoo, *PERIODOS_GRAFICO[periodo])
+    except Exception as erro:  # noqa: BLE001
+        return {"ticker": ticker_yahoo, "erro": f"histórico indisponível: {erro}"}
+    if not serie:
+        return {"ticker": ticker_yahoo, "erro": "histórico indisponível: sem dados"}
+    pontos = [{"t": t, "v": round(v, 4)} for t, v in serie]
+    return {
+        "ticker": ticker_yahoo,
+        "periodo": periodo,
+        "moeda": _moeda(ticker_yahoo),
+        "pontos": pontos,
+        "variacao_pct": _variacao(pontos[-1]["v"], pontos[0]["v"]),
+        "fonte": "Yahoo Finance",
+    }
 
 
 def obter_indicadores() -> dict:
@@ -187,8 +294,7 @@ def obter_indicadores() -> dict:
 
 def obter_panorama() -> dict:
     panorama = {}
-    for nome, ticker in PANORAMA.items():
-        cotacao = obter_cotacao(ticker)
+    for nome, cotacao in zip(PANORAMA, obter_cotacoes(list(PANORAMA.values()))):
         panorama[nome] = {
             k: cotacao.get(k) for k in ("ticker", "preco", "variacao_dia_pct", "erro") if cotacao.get(k) is not None
         }

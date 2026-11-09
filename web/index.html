@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Terminal · News Analytics</title>
+<meta name="description" content="Notícias e dados de mercado para investidores, apurados por agentes de IA.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='30' height='30' fill='%23000' stroke='%2322d3ee' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/quantum.css">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+<script src="/static/js/app.js" defer></script>
+</head>
+<body>
+<div class="fx-vignette"></div>
+<div class="fx-streaks"></div>
+<div class="fx-scanlines"></div>
+<div class="scrim" id="scrim"></div>
+
+<div class="app">
+  <!-- ============================== SIDEBAR ============================== -->
+  <aside class="side" id="side" aria-label="Navegação">
+    <div class="side-head">
+      <div class="mark"><i></i></div>
+      <span class="name">NEWS·ANALYTICS</span>
+      <button class="collapse" id="collapse" aria-label="Recolher menu" title="Recolher menu"><i data-lucide="chevrons-left"></i></button>
+    </div>
+    <div class="side-scroll">
+      <div class="side-group">Plataforma</div>
+      <button class="side-link active" data-nav="painel"><i data-lucide="layout-dashboard"></i><span>Painel</span></button>
+      <button class="side-link" data-nav="materias"><i data-lucide="newspaper"></i><span>Matérias</span><span class="count" id="count-materias">0</span></button>
+      <button class="side-link" data-nav="watchlist"><i data-lucide="star"></i><span>Watchlist</span><span class="count" id="count-watch">0</span></button>
+      <button class="side-link" data-nav="simulador"><i data-lucide="calculator"></i><span>Simulador RF</span></button>
+      <button class="side-link only-tablet" data-open-chat><i data-lucide="terminal"></i><span>Console da redação</span></button>
+
+      <div class="side-group">Perguntar sobre</div>
+      <button class="side-link" data-ask="Qual a notícia mais relevante de hoje para quem investe em ações na B3?"><span class="tag-dot" style="background: var(--qt-cyan)"></span><span>Renda variável</span></button>
+      <button class="side-link" data-ask="Como os juros e a inflação mais recentes afetam a renda fixa (Tesouro, CDB, LCI/LCA)?"><span class="tag-dot" style="background: var(--qt-up)"></span><span>Renda fixa</span></button>
+      <button class="side-link" data-ask="O que está movendo os fundos imobiliários (FIIs) e o IFIX nesta semana?"><span class="tag-dot" style="background: var(--qt-violet)"></span><span>Fundos & FIIs</span></button>
+      <button class="side-link" data-ask="Por que o dólar e o bitcoin oscilaram hoje e o que isso significa para o investidor brasileiro?"><span class="tag-dot" style="background: var(--qt-warn)"></span><span>Câmbio & cripto</span></button>
+
+      <div class="side-group">Sistema</div>
+      <div class="sys" id="sys">
+        <div class="sys-row"><span>Chave Groq</span><span class="val" id="sys-key">…</span></div>
+        <div class="sys-row"><span>Modelo</span><span class="val" id="sys-model">…</span></div>
+        <div class="sys-row"><span>Busca</span><span class="val" id="sys-search">…</span></div>
+        <div class="sys-row"><span>Em execução</span><span class="val" id="sys-running">…</span></div>
+      </div>
+    </div>
+    <div class="side-foot">
+      <div class="avatar" id="avatar">NA</div>
+      <div class="meta"><div style="font-size: 13px">Modo local</div><div class="t-label" style="font-size: 9px">127.0.0.1 · sem conta</div></div>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <!-- ============================== TOPO ============================== -->
+    <header class="app-top">
+      <button class="btn icon sm ghost only-mobile" id="open-side" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
+      <div class="crumbs">Plataforma / <b id="crumb">Painel</b></div>
+      <div class="grow"></div>
+      <form class="input search" id="search-form" role="search">
+        <i data-lucide="search"></i>
+        <input id="search" placeholder="Adicionar ativo à watchlist (ex.: PETR4)" autocomplete="off" aria-label="Buscar ativo">
+        <kbd>Ctrl K</kbd>
+      </form>
+      <div class="market-clock" id="clock"><span class="dot"></span><span>B3</span><span id="clock-txt">--:--</span></div>
+      <button class="btn icon sm" id="refresh" aria-label="Atualizar dados de mercado" title="Atualizar dados de mercado"><i data-lucide="refresh-cw"></i></button>
+      <button class="btn icon sm only-tablet" data-open-chat aria-label="Abrir console"><i data-lucide="terminal"></i></button>
+    </header>
+
+    <div class="tape" id="tape"><div class="tape-track"></div></div>
+
+    <div class="app-body">
+      <main class="views">
+        <!-- ============================== PAINEL ============================== -->
+        <section class="view active" data-view="painel" aria-label="Painel">
+          <div class="grid">
+            <div class="hud kpi" id="kpi-ibov"><div class="hud-title">Ibovespa<span class="end t-label">pts</span></div><div class="value">—</div><div class="delta flat-t">carregando…</div><svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none"></svg></div>
+            <div class="hud kpi" id="kpi-usd"><div class="hud-title">Dólar<span class="end t-label">R$</span></div><div class="value">—</div><div class="delta flat-t">carregando…</div><svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none"></svg></div>
+            <div class="hud kpi" id="kpi-selic"><div class="hud-title">Selic meta<span class="end t-label">% a.a.</span></div><div class="value">—</div><div class="delta flat-t">carregando…</div><div class="meta t-label"></div></div>
+            <div class="hud kpi" id="kpi-ipca"><div class="hud-title">IPCA 12 meses<span class="end t-label">%</span></div><div class="value">—</div><div class="delta flat-t">carregando…</div><div class="meta t-label"></div></div>
+
+            <div class="hud span4">
+              <div class="hud-title"><i data-lucide="activity"></i><span id="chart-title">Ibovespa</span>
+                <div class="end">
+                  <span id="chart-var" class="mono" style="font-size: 12px"></span>
+                  <div class="chart-range" id="chart-range"><button data-p="1d">1D</button><button data-p="5d">5D</button><button data-p="1mo" class="active">1M</button><button data-p="6mo">6M</button><button data-p="1y">1A</button></div>
+                </div>
+              </div>
+              <div class="chart-wrap" id="main-chart"><div class="chart-empty">carregando histórico…</div></div>
+            </div>
+
+            <div class="hud span2">
+              <div class="hud-title"><i data-lucide="newspaper"></i>Últimas matérias<span class="end"><button class="btn ghost sm" data-nav="materias">ver todas</button></span></div>
+              <div class="news-list" id="news-latest"><div class="skeleton" style="width: 80%"></div><div class="skeleton" style="width: 60%"></div></div>
+            </div>
+
+            <div class="hud span2" id="sim-mini">
+              <div class="hud-title"><i data-lucide="calculator"></i>Simulador renda fixa<span class="end t-label" id="sim-mini-rate"></span></div>
+              <div class="t-label" id="sim-mini-desc">R$ 10.000 · 12 meses · 100% do CDI</div>
+              <div class="sim-out" id="sim-mini-out">—</div>
+              <input class="range" type="range" min="1" max="60" value="12" id="sim-mini-months" aria-label="Prazo em meses">
+              <div class="t-label" style="margin-top: 8px" id="sim-mini-meta"></div>
+            </div>
+
+            <div class="hud span4">
+              <div class="hud-title"><i data-lucide="star"></i>Watchlist<span class="end"><span class="live"><span class="dot blink"></span>Yahoo Finance</span><button class="btn ghost sm" data-nav="watchlist">gerenciar</button></span></div>
+              <div class="table-wrap"><table class="table" id="watch-mini"></table></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== MATÉRIAS ============================== -->
+        <section class="view" data-view="materias" aria-label="Matérias">
+          <div class="view-head"><div><h1 class="view-title">Matérias <em>salvas</em></h1><p class="view-sub">Geradas pelos agentes e salvas em <span class="mono">output/</span>.</p></div><button class="btn sm" id="reload-materias"><i data-lucide="refresh-cw"></i><span>Recarregar</span></button></div>
+          <div class="materias">
+            <div class="hud mat-list" id="mat-list"></div>
+            <div class="hud mat-reader"><div id="mat-reader" class="md reader"><div class="empty">Selecione uma matéria.</div></div></div>
+          </div>
+        </section>
+
+        <!-- ============================== WATCHLIST ============================== -->
+        <section class="view" data-view="watchlist" aria-label="Watchlist">
+          <div class="view-head"><div><h1 class="view-title">Watch<em>list</em></h1><p class="view-sub">Ações, FIIs, BDRs (sem .SA), ações dos EUA e apelidos: IBOV, DOLAR, BITCOIN, OURO, BRENT.</p></div>
+            <form class="input" id="watch-form" style="width: 320px; max-width: 100%"><span class="prompt">+</span><input id="watch-input" placeholder="Ticker, ex.: TAEE11" autocomplete="off" aria-label="Adicionar ticker"><kbd>↵</kbd></form>
+          </div>
+          <div class="hud"><div class="table-wrap"><table class="table" id="watch-full"></table></div></div>
+        </section>
+
+        <!-- ============================== SIMULADOR ============================== -->
+        <section class="view" data-view="simulador" aria-label="Simulador de renda fixa">
+          <div class="view-head"><div><h1 class="view-title">Simulador <em>renda fixa</em></h1><p class="view-sub">Juros compostos com IR regressivo (22,5% a 15%) ou isenção (LCI/LCA). Cálculo feito pela API da plataforma.</p></div></div>
+          <div class="sim-grid">
+            <div class="hud">
+              <div class="hud-title"><i data-lucide="sliders-horizontal"></i>Parâmetros</div>
+              <div style="display: grid; gap: 16px">
+                <div class="field"><label for="sim-valor">Valor investido (R$)</label><div class="input"><input id="sim-valor" type="number" min="1" step="100" value="10000"></div></div>
+                <div class="field"><label for="sim-taxa">Taxa anual (%)</label><div class="input"><input id="sim-taxa" type="number" min="0.01" step="0.05" value="13.65"><button type="button" class="btn ghost sm" id="sim-usar-cdi">usar CDI</button></div></div>
+                <div class="field"><label for="sim-meses">Prazo: <span id="sim-meses-out" class="mono" style="color: var(--qt-text)">12 meses</span></label><input class="range" type="range" id="sim-meses" min="1" max="120" value="12"></div>
+                <div class="field"><label>Isento de IR (LCI/LCA/CRI/CRA)</label><div><span class="toggle" role="switch" aria-checked="false" tabindex="0" id="sim-isento"></span></div></div>
+              </div>
+            </div>
+            <div class="hud">
+              <div class="hud-title"><i data-lucide="line-chart"></i>Resultado</div>
+              <div class="t-label">Valor líquido</div>
+              <div class="sim-out" id="sim-liquido" style="font-size: 34px">—</div>
+              <div class="mono" id="sim-rent" style="font-size: 13px"></div>
+              <div class="sim-bar" id="sim-bar"><i style="background: var(--qt-text-3)"></i><i style="background: var(--qt-up)"></i><i style="background: var(--qt-down)"></i></div>
+              <div class="sim-legend"><span><i style="background: var(--qt-text-3)"></i>Investido</span><span><i style="background: var(--qt-up)"></i>Rendimento líquido</span><span><i style="background: var(--qt-down)"></i>Imposto</span></div>
+              <div class="stat-list" id="sim-stats" style="margin-top: 16px"></div>
+              <p class="t-label" style="margin-top: 14px; line-height: 1.6">Simulação informativa; não constitui recomendação de investimento.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- ============================== CONSOLE (CHAT) ============================== -->
+      <aside class="app-chat" id="chat" aria-label="Console da redação">
+        <div class="chat-head">
+          <div class="hud-title"><i data-lucide="terminal"></i>Console da redação<span class="end"><button class="btn ghost sm" id="chat-clear" title="Limpar conversa"><i data-lucide="eraser"></i></button><button class="btn ghost sm only-tablet" id="chat-close" aria-label="Fechar console"><i data-lucide="x"></i></button></span></div>
+          <div class="seg" id="seg-versoes"><span class="thumb"></span></div>
+          <div class="chat-desc" id="versao-desc"></div>
+        </div>
+        <div class="chat-log" id="chat-log" aria-live="polite"></div>
+        <form class="chat-input" id="chat-form">
+          <div class="input"><span class="prompt" style="padding-bottom: 3px">&gt;</span><textarea id="chat-in" rows="1" placeholder="Pergunte sobre o mercado…" aria-label="Pergunta"></textarea><button class="btn primary icon sm" id="chat-send" aria-label="Enviar"><i data-lucide="corner-down-left"></i></button></div>
+          <div class="hint"><span class="t-label">Enter envia · Shift+Enter quebra linha</span><span class="t-label" id="chat-timer"></span></div>
+        </form>
+      </aside>
+    </div>
+  </div>
+</div>
+<div class="toast-zone" id="toasts" aria-live="polite"></div>
+</body>
+</html>

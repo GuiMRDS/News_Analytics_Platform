@@ -15,7 +15,7 @@ Uma redação de agentes especializados pesquisa a notícia, apura em múltiplas
 - Verifica números: cotações e indicadores são conferidos com dados oficiais.
 - Analisa o impacto por classe de ativo, com painel de mercado e glossário.
 - Redige a matéria com referências numeradas e salva em Markdown.
-- Mostra o mercado ao vivo na interface: Ibovespa, dólar, S&P 500, Nasdaq, Bitcoin, Brent, Selic, CDI, IPCA e PTAX.
+- Interface **Quantum Terminal** (HTML/CSS/JS puro): painel com Ibovespa, dólar, Selic, CDI, IPCA, gráfico intradiário, watchlist, simulador de renda fixa, matérias salvas e console da redação com a **telemetria do pipeline em tempo real**.
 
 ---
 
@@ -69,7 +69,7 @@ Gratuitas e sem chave de API:
 
 | Ferramenta | Fonte | Exemplo |
 |---|---|---|
-| `cotacao_ativo` | Yahoo Finance | PETR4, VALE3, MXRF11 (FII), AAPL34 (BDR), AAPL, IBOV, DOLAR, BITCOIN |
+| `cotacao_ativo` | Yahoo Finance (API pública de gráficos) | PETR4, VALE3, MXRF11 (FII), AAPL34 (BDR), AAPL, IBOV, DOLAR, BITCOIN |
 | `indicadores_economicos` | Banco Central (SGS) | Selic meta, CDI, IPCA 12 meses, dólar PTAX |
 | `panorama_mercado` | Yahoo Finance | Ibovespa, dólar, S&P 500, Nasdaq, Bitcoin, Brent |
 | `simular_investimento_renda_fixa` | cálculo local | CDB/Tesouro com IR regressivo, LCI/LCA isentas |
@@ -82,9 +82,10 @@ Gratuitas e sem chave de API:
 - **Agno** 2.4.8: Agent, Team, Workflow, Step, Loop
 - **Groq**: `openai/gpt-oss-20b` (configurável)
 - **Busca**: `ddgs` (backend `auto`)
-- **Dados de mercado**: `yfinance` + API SGS do Banco Central
-- **Interface**: Streamlit (chat)
-- **Testes**: pytest + Streamlit AppTest + GitHub Actions
+- **Dados de mercado**: API pública de gráficos do Yahoo Finance (endpoints `spark`/`chart`, em lote) + API SGS do Banco Central
+- **API**: FastAPI + Uvicorn (JSON + Server-Sent Events)
+- **Interface**: HTML, CSS e JavaScript puros, sem build — design system **Quantum Terminal** (`design/design_system1.html`)
+- **Testes**: pytest + FastAPI TestClient + GitHub Actions
 
 ---
 
@@ -102,7 +103,13 @@ News_Analytics_Platform/
 │   ├── agente_curador_v4.py     # V4
 │   └── agente_curador_v5.py     # V5 — Investidor
 ├── skills/                      # pesquisa, apuração, verificação, análise de mercado, redação
-├── ui/                          # app Streamlit (chat + painel de mercado)
+├── api/
+│   ├── servidor.py              # FastAPI: rotas /api/* e o front-end
+│   ├── execucao.py              # perguntas em segundo plano + eventos do pipeline
+│   ├── registry.py              # versões V1–V5 (import sob demanda)
+│   └── __main__.py              # python -m api
+├── web/                         # front-end Quantum Terminal (index.html, css/, js/)
+├── design/                      # design systems 1–3 e referências visuais
 ├── tests/                       # pytest (sem LLM e sem rede)
 ├── .github/workflows/           # CI: testes automáticos
 └── output/                      # matérias geradas (ignorado pelo git)
@@ -118,7 +125,7 @@ cd News_Analytics_Platform
 uv sync
 ```
 
-> **Windows com Smart App Control:** o Windows bloqueia o Python baixado pelo uv e os executáveis gerados em `.venv\Scripts` (`DLL load failed ... Uma política de Controle de Aplicativo bloqueou este arquivo`). Por isso o projeto usa `python-preference = "only-system"`. Instale o Python oficial (`py install 3.13` ou python.org), rode `uv sync` e execute as ferramentas sempre via `python -m` (`python -m streamlit`, `python -m pytest`).
+> **Windows com Smart App Control:** o Windows bloqueia o Python baixado pelo uv e os executáveis gerados em `.venv\Scripts` (`DLL load failed ... Uma política de Controle de Aplicativo bloqueou este arquivo`). Por isso o projeto usa `python-preference = "only-system"`. Instale o Python oficial (`py install 3.13` ou python.org), rode `uv sync` e execute as ferramentas sempre via `python -m` (`python -m api`, `python -m pytest`).
 
 # 🔑 Configuração
 
@@ -140,11 +147,14 @@ Obtenha a chave em https://console.groq.com.
 # ▶️ Executando
 
 ```bash
-uv run python -m streamlit run ui/app.py          # interface (chat)
-uv run python -m agente.agente_curador_v5         # V5 no terminal
+uv run python -m api                              # Quantum Terminal em http://127.0.0.1:8000
+uv run python -m api --port 8080 --reload         # outra porta / recarregar ao editar
+uv run python -m agente.agente_curador_v5         # V5 no terminal, sem interface
 ```
 
-Na interface, escolha a versão dos agentes no seletor acima do chat (dá para trocar a qualquer momento), use as sugestões ou pergunte sobre qualquer ativo/tema. A barra lateral mostra o mercado ao vivo.
+Abra **http://127.0.0.1:8000**. No console da redação (à direita), escolha a versão dos agentes (V1–V5), use uma sugestão ou pergunte sobre qualquer ativo/tema: cada etapa do pipeline acende conforme os agentes trabalham e a matéria chega formatada, com links. O painel de mercado funciona mesmo sem a `GROQ_API_KEY`.
+
+A documentação interativa da API fica em **http://127.0.0.1:8000/api/docs**.
 
 ## Testes
 

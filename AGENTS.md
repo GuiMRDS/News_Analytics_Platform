@@ -4,7 +4,7 @@ Instruções para agentes de código (Claude Code, Codex, Cursor etc.) que traba
 
 ## Resumo do projeto
 
-Plataforma de notícias **para investidores** (ações, renda fixa, renda variável, fundos, câmbio, cripto, economia; outros temas também são aceitos). Agentes **Agno** + Groq pesquisam, apuram, checam fatos, cruzam com **dados reais de mercado** (yfinance + Banco Central) e redigem a matéria. As versões V1 a V5 em `agente/` são arquiteturas diferentes; a **V5 — Investidor** é a principal. A UI Streamlit é um chat com seletor de versão e painel de mercado.
+Plataforma de notícias **para investidores** (ações, renda fixa, renda variável, fundos, câmbio, cripto, economia; outros temas também são aceitos). Agentes **Agno** + Groq pesquisam, apuram, checam fatos, cruzam com **dados reais de mercado** (API de gráficos do Yahoo + Banco Central) e redigem a matéria. As versões V1 a V5 em `agente/` são arquiteturas diferentes; a **V5 — Investidor** é a principal. A interface é o **Quantum Terminal** (HTML/CSS/JS puro em `web/`), servida por uma API **FastAPI** (`api/`) que expõe mercado, simulador, matérias e perguntas com progresso via SSE.
 
 ## Setup e comandos
 
@@ -12,7 +12,7 @@ Plataforma de notícias **para investidores** (ações, renda fixa, renda variá
 uv sync                                     # Python 3.12/3.13 do sistema
 cp .env.example .env                        # GROQ_API_KEY
 uv run python -m pytest                     # ~3 s, sem rede: rode antes de concluir qualquer mudança
-uv run python -m streamlit run ui/app.py    # interface
+uv run python -m api                        # Quantum Terminal em http://127.0.0.1:8000 (--port, --reload)
 uv run python -m agente.agente_curador_v5   # V5 no terminal
 ```
 
@@ -27,12 +27,15 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
 |---|---|
 | `agente/comum.py` | `criar_modelo`, `criar_busca`, `carregar_skills`, `ler_skill`, caminhos, `contar_fontes`, `mensagem_erro_amigavel`, limites |
 | `agente/passos.py` | `passo_agente` (expõe o erro real), `validar_fontes`, `exportar_markdown`, `slug`, `criar_condicao_fontes` |
-| `agente/ferramentas_mercado.py` | `MercadoFinanceiroTools` e funções `obter_cotacao`/`obter_indicadores`/`obter_panorama`/`simular_renda_fixa` |
+| `agente/ferramentas_mercado.py` | `MercadoFinanceiroTools` e funções `obter_cotacoes` (lote)/`obter_cotacao`/`obter_historico`/`obter_indicadores`/`obter_panorama`/`simular_renda_fixa` |
 | `agente/agente_curador*.py` | V1 `agente_noticias`, V2 `workflow`, V3 `news_curator_workflow`, V4 `research_pipeline_workflow`, V5 `investor_workflow` |
 | `skills/<nome>/SKILL.md` | pesquisa-noticias, apuracao-fontes, verificacao-factual, analise-mercado, redacao-jornalistica |
-| `ui/registry.py` | `VERSOES`, `VERSAO_PADRAO`, `carregar_workflow` (lazy) |
-| `ui/app.py`, `ui/components/sidebar.py` | Chat, sugestões, painel de mercado |
-| `tests/` | pytest; `conftest.py` simula o mercado (autouse) |
+| `api/servidor.py` | FastAPI: rotas `/api/*`, cache de mercado, SSE, serve `web/` |
+| `api/execucao.py` | `Tarefa`, `GerenciadorDeTarefas`, `executar()` (traduz eventos do Agno), `ROTULOS` das etapas |
+| `api/registry.py` | `VERSOES`, `VERSAO_PADRAO`, `carregar_workflow` (lazy) |
+| `web/index.html`, `web/css/quantum.css`, `web/js/app.js` | Front-end Quantum Terminal (sem build) |
+| `design/` | Design systems 1–3 (o 1, Quantum Terminal, é o aplicado) e referências visuais |
+| `tests/` | pytest; `conftest.py` simula o mercado (autouse); `test_api.py` cobre a API com workflows falsos |
 
 ## Convenções
 
@@ -43,8 +46,12 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
   - **Agentes em workflow:** sempre `passo_agente(...)`, nunca `Step(agent=...)` ou um agente solto em `steps=`. O Agno 2.4.8 esconde o erro real atrás de `parent_run_id`.
   - **Agentes com ferramentas:** defina `tool_call_limit`.
 - **Orçamento de tokens:** toda requisição precisa caber em 8.000 tokens. Prefira injetar só a skill necessária (`ler_skill`, padrão da V5), limitar resultados e chamadas de ferramenta, e preferir passos determinísticos (`Step(executor=...)`) para regras verificáveis (contagem de fontes, consolidação, gravação de arquivos).
-- **Dados de mercado:** números vêm das ferramentas (yfinance/BCB), nunca do LLM. Novas fontes vão em `ferramentas_mercado.py` com acesso a rede isolado em funções `_privadas` (para o fixture de testes simular), retornando `{"erro": ...}` em vez de levantar exceção.
-- **Registrar na UI:** nova versão → entrada `Versao(...)` em `VERSOES`, mais testes de estrutura em `tests/test_versoes.py`.
+- **Dados de mercado:** números vêm das ferramentas (Yahoo/BCB), nunca do LLM. Novas fontes vão em `ferramentas_mercado.py` com acesso a rede isolado em funções `_privadas` (para o fixture de testes simular), retornando `{"erro": ...}` em vez de levantar exceção.
+  - **Não volte a usar o yfinance**: o cookie/crumb dele dá timeout (~30 s) e consultas paralelas derrubam o DNS. Use `_historicos_lote` (endpoint `spark`, vários ativos por requisição) e `_serie` (endpoint `chart`); toda chamada ao Yahoo passa por `_yahoo_json` (semáforo de 4).
+  - **BCB**: a série 4389 (CDI) responde 304 em `ultimos/1`; `ultimo_valor_sgs` cai para a consulta por intervalo de datas.
+- **Registrar na UI:** nova versão → entrada `Versao(...)` em `api/registry.VERSOES` e rótulos das etapas novas em `api/execucao.ROTULOS`, mais testes de estrutura em `tests/test_versoes.py`.
+- **API:** rotas novas em `api/servidor.py` com prefixo `/api`; valide entradas com Pydantic/`HTTPException`; respostas de mercado passam pelo `cache` (que não guarda erros). Perguntas sempre via `GerenciadorDeTarefas` (thread + eventos), nunca bloqueando a requisição.
+- **Front-end (`web/`):** HTML/CSS/JS puro, **sem build**, seguindo os tokens `--qt-*` do Quantum Terminal (`design/design_system1.html`). Bibliotecas só por CDN com versão fixa. **Todo texto vindo da API passa por `esc()`**; markdown do LLM só com `renderMarkdown()` (marked + DOMPurify). Preferências no `localStorage` com `try/catch`. Respeite `prefers-reduced-motion` e as quebras de 1080/760 px.
 - **`__main__`:** chame `verificar_api_key()` antes de executar.
 - **Commits:** mensagens descritivas (evite `#`); não commitar `.venv/`, `output/`, `.env`.
 
@@ -66,7 +73,9 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
 ## Testes
 
 - Nenhum teste pode chamar o LLM, a web ou as APIs de mercado. O `conftest.py` já simula `_historico` e `_buscar_serie_bcb` e define uma chave fictícia.
-- UI: `streamlit.testing.v1.AppTest`, substituindo `registry.carregar_workflow` por um workflow falso via `monkeypatch`.
+- API: `fastapi.testclient.TestClient(servidor.app)`, substituindo `registry.carregar_workflow` por um workflow falso que **gera eventos com os mesmos nomes de classe do Agno** (veja `WorkflowFalso` em `tests/test_api.py`) e apontando `servidor.OUTPUT_DIR` para um `tmp_path`.
+- Para testar o *parsing* de uma fonte real, use o fixture `funcoes_reais` e simule só a camada HTTP (`_yahoo_json`).
+- O front não tem testes de JS: ao mexer em `web/`, verifique no navegador (console sem erros) e em 390/900/1600 px.
 
 ## Manutenção da documentação
 
