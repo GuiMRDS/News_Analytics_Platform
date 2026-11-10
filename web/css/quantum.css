@@ -132,7 +132,7 @@ svg.lucide { width: 17px; height: 17px; stroke-width: 1.5; flex-shrink: 0; }
 .range { -webkit-appearance: none; appearance: none; width: 100%; height: 2px; background: var(--qt-line-2); outline: none; }
 .range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--qt-cyan); box-shadow: var(--qt-glow-2); cursor: pointer; transform: rotate(45deg); }
 .range::-moz-range-thumb { width: 14px; height: 14px; background: var(--qt-cyan); border: 0; cursor: pointer; }
-.toggle { flex-shrink: 0; width: 44px; height: 22px; border: 1px solid var(--qt-line-2); position: relative; cursor: pointer; background: var(--qt-base); transition: all var(--qt-dur-2); }
+.toggle { display: inline-block; vertical-align: middle; flex-shrink: 0; width: 44px; height: 22px; border: 1px solid var(--qt-line-2); position: relative; cursor: pointer; background: var(--qt-base); transition: all var(--qt-dur-2); }
 .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: var(--qt-text-3); transition: all var(--qt-dur-3) var(--qt-ease-out); }
 .toggle[aria-checked="true"] { border-color: var(--qt-cyan); box-shadow: var(--qt-glow-1); }
 .toggle[aria-checked="true"]::after { left: 25px; background: var(--qt-cyan); box-shadow: 0 0 10px var(--qt-cyan); }
@@ -211,6 +211,20 @@ svg.lucide { width: 17px; height: 17px; stroke-width: 1.5; flex-shrink: 0; }
 .sys-row { display: flex; justify-content: space-between; gap: 8px; color: var(--qt-text-2); }
 .sys-row span:first-child { color: var(--qt-text-3); }
 .sys-row .val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; text-align: right; }
+/* card de tokens do Groq */
+.side-group-acao { display: flex; align-items: center; justify-content: space-between; padding-right: 14px; }
+.tk-sondar { background: none; border: 0; color: var(--qt-text-3); cursor: pointer; display: grid; padding: 2px; }
+.tk-sondar:hover { color: var(--qt-cyan); }
+.tk-sondar svg.lucide { width: 13px; height: 13px; }
+.tk-sondar.girando svg { animation: spin 0.8s linear infinite; }
+.tk + .tk { border-top: 1px dashed var(--qt-line-2); padding-top: 10px; margin-top: 4px; }
+.tk-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
+.tk-head b { font-weight: 500; color: var(--qt-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-head .badge { height: 18px; font-size: 9px; padding: 0 5px; }
+.tk-bar { height: 3px; background: var(--qt-line-2); overflow: hidden; margin: 4px 0 6px; }
+.tk-bar i { display: block; height: 100%; transition: width 1s var(--qt-ease-out); box-shadow: 0 0 8px currentColor; }
+.tk-nota { font-size: 9.5px; color: var(--qt-text-4); line-height: 1.4; }
+.side.collapsed .tokens, .side.collapsed .tk-sondar { opacity: 0; pointer-events: none; }
 .side-foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--qt-line); white-space: nowrap; flex-shrink: 0; }
 .avatar { width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center; border: 1px solid var(--qt-line-glow); font-family: var(--qt-font-mono); font-size: 11px; color: var(--qt-cyan); position: relative; }
 .avatar::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; background: var(--qt-up); box-shadow: 0 0 6px var(--qt-up); }

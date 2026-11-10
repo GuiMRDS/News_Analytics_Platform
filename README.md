@@ -19,6 +19,20 @@ Uma redação de agentes especializados pesquisa a notícia, apura em múltiplas
 
 ---
 
+## 🖥️ Telas
+
+**Painel** — mercado ao vivo, gráfico do Ibovespa, simulador, watchlist e o console da redação acompanhando o pipeline da V5:
+
+![Painel do Quantum Terminal com a telemetria do pipeline](docs/image.png)
+
+| | |
+|---|---|
+| ![Console com a matéria pronta](docs/console-materia.png) **Console da redação** — a matéria chega formatada, com links e referências (exemplo com dados ilustrativos). | ![Pesquisa cancelada](docs/cancelamento.png) **Cancelamento** — o botão de enviar vira *Cancelar*; as etapas restantes são interrompidas e nada é salvo. |
+| ![Matérias salvas](docs/materias.png) **Matérias** — lista e leitor das matérias salvas em `output/`. | ![Watchlist](docs/watchlist.png) **Watchlist** — ações, FIIs, BDRs, índices e cripto com variação do dia, do mês e de 12 meses. |
+| ![Simulador de renda fixa](docs/simulador.png) **Simulador de renda fixa** — juros compostos com IR regressivo ou isenção (LCI/LCA). | **Sidebar** — status do sistema e o card **Tokens · Groq** com o consumo de 24 h, os tokens livres por minuto e as requisições restantes de cada modelo. |
+
+---
+
 # 🏗️ Arquitetura
 
 O projeto evolui por versões, cada uma explorando uma arquitetura de agentes. Todas estão disponíveis no seletor do chat.
@@ -97,6 +111,7 @@ News_Analytics_Platform/
 │   ├── comum.py                 # configuração compartilhada (modelo, busca, skills, caminhos)
 │   ├── passos.py                # passos de workflow reutilizáveis
 │   ├── ferramentas_mercado.py   # cotações, indicadores BCB, simulador de renda fixa
+│   ├── uso_groq.py              # medidor de tokens e limites do Groq (card da sidebar)
 │   ├── agente_curador.py        # V1
 │   ├── agente_curador_v2.py     # V2
 │   ├── agente_curador_v3.py     # V3
@@ -110,6 +125,7 @@ News_Analytics_Platform/
 │   └── __main__.py              # python -m api
 ├── web/                         # front-end Quantum Terminal (index.html, css/, js/)
 ├── design/                      # design systems 1–3 e referências visuais
+├── docs/                        # capturas de tela usadas neste README
 ├── tests/                       # pytest (sem LLM e sem rede)
 ├── .github/workflows/           # CI: testes automáticos
 └── output/                      # matérias geradas (ignorado pelo git)
@@ -134,13 +150,25 @@ Copie o `.env.example` para `.env`:
 ```env
 GROQ_API_KEY=sua_chave
 # opcionais
-GROQ_MODEL_ID=openai/gpt-oss-20b
+GROQ_MODEL_ID=openai/gpt-oss-20b            # modelo principal
+GROQ_MODELOS_RESERVA=openai/gpt-oss-120b     # usados quando a cota diária do principal acaba (vazio desativa)
 BUSCA_BACKEND=auto
 ```
 
 Obtenha a chave em https://console.groq.com.
 
-> **Limite do plano gratuito do Groq:** 8.000 tokens por minuto por modelo. Cada chamada de ferramenta é uma nova requisição ao modelo, então um workflow completo leva vários minutos e boa parte desse tempo é espera pela cota. A V5 economiza tokens injetando só a skill de cada agente e limitando as chamadas de ferramenta; o plano Developer do Groq deixa tudo bem mais rápido.
+> **Limites do plano gratuito do Groq (por modelo):** 8.000 tokens por minuto, 1.000 requisições por dia e **200.000 tokens por dia** (janela móvel de 24 h). Cada chamada de ferramenta é uma nova requisição ao modelo, então um workflow completo leva vários minutos e consome boa parte da cota diária.
+
+### Cota diária e modelos reserva
+
+Como cada modelo tem a sua própria cota diária, quando o modelo principal esgota os agentes **trocam sozinhos** para o próximo de `GROQ_MODELOS_RESERVA`, no meio da execução e sem esperar. Se todos estiverem esgotados, a pergunta é recusada na hora com o tempo até a cota liberar, em vez de rodar um pipeline que vai falhar.
+
+O card **Tokens · Groq** na sidebar mostra, para cada modelo:
+
+- **24 h**: tokens usados / 200 mil. É a contagem do app (o `usage` de cada resposta), corrigida pelo valor oficial do Groq sempre que ele o informa num erro 429. Fica salva em `output/.uso_groq.json`.
+- **Livre/min**: tokens por minuto ainda livres, lidos do cabeçalho `x-ratelimit-remaining-tokens` da última resposta.
+- **Req. hoje**: requisições restantes no dia, do cabeçalho `x-ratelimit-remaining-requests`.
+- O botão ⟳ consulta os limites atuais no Groq agora, com uma chamada mínima que gasta ~10 tokens por modelo.
 
 ---
 
@@ -155,6 +183,18 @@ uv run python -m agente.agente_curador_v5         # V5 no terminal, sem interfac
 Abra **http://127.0.0.1:8000**. No console da redação (à direita), escolha a versão dos agentes (V1–V5), use uma sugestão ou pergunte sobre qualquer ativo/tema: cada etapa do pipeline acende conforme os agentes trabalham e a matéria chega formatada, com links. O painel de mercado funciona mesmo sem a `GROQ_API_KEY`.
 
 A documentação interativa da API fica em **http://127.0.0.1:8000/api/docs**.
+
+### Cancelar uma pergunta
+
+Durante a execução, o botão de enviar vira **Cancelar** (também há um botão no cartão de telemetria, e a tecla **Esc** funciona). Se a pergunta ainda está sendo enviada, o envio é abortado. Se a pesquisa já começou, os agentes em execução são interrompidos entre as chamadas ao modelo, o workflow não avança e **nenhuma matéria é salva**. A chamada ao modelo que já estava em andamento termina antes de parar.
+
+### Matérias salvas
+
+1. A última etapa de cada workflow (V4/V5: `exportacao`; V1–V3: o redator, pela ferramenta de arquivos) grava a matéria em `output/<versão>/materia_<tema>_<data>.md`.
+2. A API lista esses arquivos em `GET /api/materias` (mais recentes primeiro; o título é a primeira linha da matéria) e entrega o conteúdo em `GET /api/materias/<versão>/<arquivo>`.
+3. No Quantum Terminal, as matérias aparecem em **Últimas matérias** (painel) e na tela **Matérias**, com o leitor formatado e o botão **Copiar markdown**. A lista é recarregada sozinha quando uma pergunta termina.
+4. Os arquivos ficam no seu disco (a pasta `output/` não vai para o git) e podem ser abertos em qualquer editor de Markdown. Para apagar uma matéria, basta apagar o arquivo.
+5. Perguntas canceladas ou com erro não geram arquivo.
 
 ## Testes
 

@@ -526,11 +526,46 @@ $('#chat-in').addEventListener('input', autoAltura);
 /* ---------------------------------------------------------------------------
    Status do sistema
 --------------------------------------------------------------------------- */
+const fmtK = (n) => (n == null ? '—' : n >= 1000 ? fmt(n / 1000, 1) + 'k' : String(n));
+
+function renderTokens(uso = [], cota = [], ativo = '') {
+  const el = $('#tokens');
+  if (!uso.length) { el.innerHTML = '<div class="tk-nota">Sem dados do Groq ainda.</div>'; return; }
+  const livre = Object.fromEntries(cota.map((c) => [c.modelo, c]));
+  el.innerHTML = uso.map((u) => {
+    const pct = Math.min(100, (u.tokens_24h / (u.tpd_limite || 1)) * 100);
+    const cor = pct >= 90 ? 'var(--qt-down)' : pct >= 70 ? 'var(--qt-warn)' : 'var(--qt-cyan)';
+    const c = livre[u.modelo];
+    const estado = c && !c.disponivel ? `<span class="badge down">esgotado · ~${Math.max(1, Math.round(c.libera_em_s / 60))}min</span>`
+      : u.modelo === ativo ? '<span class="badge cyan">ativo</span>' : '<span class="badge neutral">reserva</span>';
+    const tpm = u.tpm_limite ? `${fmtK(u.tpm_restante)} / ${fmtK(u.tpm_limite)}` : '—';
+    const rpd = u.rpd_limite ? `${fmt(u.rpd_restante, 0)} / ${fmt(u.rpd_limite, 0)}` : '—';
+    return `<div class="tk" title="${esc(u.fonte_24h)} · ${u.chamadas_24h} chamadas em 24 h">
+      <div class="tk-head"><b>${esc(u.modelo.replace(/^openai\//, ''))}</b>${estado}</div>
+      <div class="sys-row"><span>24 h</span><span class="val">${fmtK(u.tokens_24h)} / ${fmtK(u.tpd_limite)}</span></div>
+      <div class="tk-bar"><i style="width:${pct}%;background:${cor};color:${cor}"></i></div>
+      <div class="sys-row"><span>Livre/min</span><span class="val">${tpm}</span></div>
+      <div class="sys-row"><span>Req. hoje</span><span class="val">${rpd}</span></div></div>`;
+  }).join('') + '<div class="tk-nota" style="margin-top:6px">24 h: contagem do app, corrigida pelo Groq quando ele informa. Livre/min e Req. hoje: cabeçalhos da última resposta.</div>';
+}
+
+$('#tk-sondar').addEventListener('click', async () => {
+  const b = $('#tk-sondar'); b.classList.add('girando'); b.disabled = true;
+  try {
+    const r = await api('/api/groq/sondar', { method: 'POST' });
+    const falhas = r.sondagem.filter((s) => !s.ok);
+    toast(falhas.length ? `Limites atualizados · ${falhas.length} modelo(s) com erro` : 'Limites do Groq atualizados', falhas.length ? 'err' : 'ok');
+    await atualizarStatus();
+  } catch (e) { toast('Falha ao consultar o Groq: ' + e.message, 'err'); }
+  b.classList.remove('girando'); b.disabled = false;
+});
+
 async function atualizarStatus() {
   try {
     const s = await api('/api/status');
     $('#sys-key').innerHTML = s.api_key_configurada ? '<span class="up-t">configurada</span>' : '<span class="down-t">ausente</span>';
     $('#sys-model').textContent = s.modelo; $('#sys-model').title = s.modelo;
+    renderTokens(s.uso_groq, s.cota, s.modelo);
     const cota = s.cota || [], esgotados = cota.filter((c) => !c.disponivel);
     const q = $('#sys-quota');
     if (!esgotados.length) { q.innerHTML = '<span class="up-t">disponível</span>'; q.title = cota.map((c) => c.modelo).join(', '); }
@@ -560,7 +595,7 @@ async function iniciar() {
   atualizarStatus();
   carregarMercado(); carregarWatchlist(); carregarGrafico(); carregarMaterias(); simularCompleto();
   setInterval(() => { if (!document.hidden) { carregarMercado(); carregarWatchlist(); } }, 5 * 60 * 1000);
-  setInterval(() => { if (!document.hidden) atualizarStatus(); }, 60 * 1000);
+  setInterval(() => { if (!document.hidden) atualizarStatus(); }, 15 * 1000);  // tokens e cota (chamada local)
   let tRes; addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(carregarGrafico, 250); });
 }
 iniciar();

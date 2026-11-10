@@ -21,10 +21,16 @@ from agente import ferramentas_mercado as mercado
 from agente.comum import (
     BASE_DIR,
     OUTPUT_DIR,
+    cliente_http_groq,
+    cota_diaria_esgotada,
+    medidor_groq,
+    mensagem_erro_amigavel,
     modelo_disponivel,
     modelos_configurados,
     obter_api_key,
+    registrar_cota_esgotada,
     resumo_cota_esgotada,
+    segundos_ate_liberar,
     situacao_cota,
 )
 from api import registry
@@ -92,10 +98,36 @@ def status() -> dict:
         "api_key_configurada": bool(obter_api_key()),
         "modelo": modelo_disponivel() or modelos_configurados()[0],
         "cota": situacao_cota(),
+        "uso_groq": [medidor_groq.uso(m) for m in modelos_configurados()],
         "busca_backend": os.getenv("BUSCA_BACKEND", "auto"),
         "versao_padrao": registry.VERSAO_PADRAO,
         "tarefas_em_andamento": tarefas.em_andamento(),
     }
+
+
+@app.post("/api/groq/sondar")
+def sondar_groq() -> dict:
+    """Faz uma chamada mínima (max_tokens=1) em cada modelo para ler os limites atuais.
+
+    Custa cerca de 10 tokens por modelo. Os cabeçalhos x-ratelimit-* e eventuais
+    erros 429 de cota diária são registrados pelo medidor.
+    """
+    if not obter_api_key():
+        raise HTTPException(503, "GROQ_API_KEY não configurada.")
+    from groq import Groq as ClienteGroq  # import tardio: só quando o usuário pede
+
+    cliente = ClienteGroq(api_key=obter_api_key(), http_client=cliente_http_groq(), max_retries=0)
+    resultados = []
+    for modelo in modelos_configurados():
+        try:
+            cliente.chat.completions.create(model=modelo, messages=[{"role": "user", "content": "ok"}], max_tokens=1)
+            resultados.append({"modelo": modelo, "ok": True})
+        except Exception as erro:  # noqa: BLE001
+            texto = str(erro)
+            if cota_diaria_esgotada(texto):
+                registrar_cota_esgotada(modelo, segundos_ate_liberar(texto))
+            resultados.append({"modelo": modelo, "ok": False, "erro": mensagem_erro_amigavel(texto)[:200]})
+    return {"sondagem": resultados, "uso_groq": [medidor_groq.uso(m) for m in modelos_configurados()]}
 
 
 @app.get("/api/versoes")

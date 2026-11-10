@@ -27,6 +27,7 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
 |---|---|
 | `agente/comum.py` | `criar_modelo`, `criar_busca`, `carregar_skills`, `ler_skill`, caminhos, `contar_fontes`, `mensagem_erro_amigavel`, limites |
 | `agente/passos.py` | `passo_agente` (expõe o erro real), `validar_fontes`, `exportar_markdown`, `slug`, `criar_condicao_fontes` |
+| `agente/uso_groq.py` | `MedidorGroq`: tokens de 24 h, TPM e RPD por modelo via hook do httpx (card da sidebar) |
 | `agente/ferramentas_mercado.py` | `MercadoFinanceiroTools` e funções `obter_cotacoes` (lote)/`obter_cotacao`/`obter_historico`/`obter_indicadores`/`obter_panorama`/`simular_renda_fixa` |
 | `agente/agente_curador*.py` | V1 `agente_noticias`, V2 `workflow`, V3 `news_curator_workflow`, V4 `research_pipeline_workflow`, V5 `investor_workflow` |
 | `skills/<nome>/SKILL.md` | pesquisa-noticias, apuracao-fontes, verificacao-factual, analise-mercado, redacao-jornalistica |
@@ -45,6 +46,8 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
   - **Busca:** sempre `criar_busca()`. O backend `duckduckgo` está quebrado e os resultados precisam ser limitados por causa dos tokens.
   - **Agentes em workflow:** sempre `passo_agente(...)`, nunca `Step(agent=...)` ou um agente solto em `steps=`. O Agno 2.4.8 esconde o erro real atrás de `parent_run_id`.
   - **Agentes com ferramentas:** defina `tool_call_limit`.
+  - **Modelo:** sempre `criar_modelo()`. Ele escolhe o primeiro modelo com cota (`GROQ_MODEL_ID` + `GROQ_MODELOS_RESERVA`), troca de modelo sozinho quando a cota diária acaba (`GroqTolerante`) e usa `cliente_http_groq()`, que alimenta o medidor de tokens. Chamadas diretas ao SDK do Groq também devem usar `http_client=cliente_http_groq()`.
+  - **Cancelamento:** passos que chamam agentes usam `passo_agente` (que repassa `run_id=novo_run_id()` e checa `verificar_cancelamento()`). Passos determinísticos que gravam algo devem chamar `verificar_cancelamento()` antes. Não chame `cancel_run` do Agno direto: use `api.execucao.cancelar_run_do_agno`, que trata o run ainda não registrado.
 - **Orçamento de tokens:** toda requisição precisa caber em 8.000 tokens. Prefira injetar só a skill necessária (`ler_skill`, padrão da V5), limitar resultados e chamadas de ferramenta, e preferir passos determinísticos (`Step(executor=...)`) para regras verificáveis (contagem de fontes, consolidação, gravação de arquivos).
 - **Dados de mercado:** números vêm das ferramentas (Yahoo/BCB), nunca do LLM. Novas fontes vão em `ferramentas_mercado.py` com acesso a rede isolado em funções `_privadas` (para o fixture de testes simular), retornando `{"erro": ...}` em vez de levantar exceção.
   - **Não volte a usar o yfinance**: o cookie/crumb dele dá timeout (~30 s) e consultas paralelas derrubam o DNS. Use `_historicos_lote` (endpoint `spark`, vários ativos por requisição) e `_serie` (endpoint `chart`); toda chamada ao Yahoo passa por `_yahoo_json` (semáforo de 4).
@@ -75,7 +78,8 @@ uv run python -m agente.agente_curador_v5   # V5 no terminal
 - Nenhum teste pode chamar o LLM, a web ou as APIs de mercado. O `conftest.py` já simula `_historico` e `_buscar_serie_bcb` e define uma chave fictícia.
 - API: `fastapi.testclient.TestClient(servidor.app)`, substituindo `registry.carregar_workflow` por um workflow falso que **gera eventos com os mesmos nomes de classe do Agno** (veja `WorkflowFalso` em `tests/test_api.py`) e apontando `servidor.OUTPUT_DIR` para um `tmp_path`.
 - Para testar o *parsing* de uma fonte real, use o fixture `funcoes_reais` e simule só a camada HTTP (`_yahoo_json`).
-- O front não tem testes de JS: ao mexer em `web/`, verifique no navegador (console sem erros) e em 390/900/1600 px.
+- Cota, cancelamento e medidor: `test_cota.py`, `test_cancelamento.py`, `test_uso_groq.py`. O `conftest.py` zera o registro de cotas e as variáveis `GROQ_MODEL_ID`/`GROQ_MODELOS_RESERVA` a cada teste. Para HTTP do Groq, use `httpx.MockTransport`.
+- O front não tem testes de JS: ao mexer em `web/`, verifique no navegador (console sem erros) e em 390/900/1600 px. No Chrome headless com `--virtual-time-budget`, os *timers* da página **congelam enquanto o SSE está aberto**: dispare ações de teste a partir dos eventos, não de `setTimeout`.
 
 ## Manutenção da documentação
 

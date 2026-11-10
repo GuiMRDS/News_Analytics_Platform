@@ -10,6 +10,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from agno.models.groq import Groq
 from agno.utils.log import log_warning
+
+from agente.uso_groq import MedidorGroq
 from agno.skills import Skills, LocalSkills
 from agno.tools.file import FileTools
 from agno.tools.websearch import WebSearchTools
@@ -158,11 +160,26 @@ class GroqTolerante(Groq):
         return super()._is_retryable_error(error)
 
 
+medidor_groq = MedidorGroq(OUTPUT_DIR / ".uso_groq.json")
+_cliente_http_groq = None
+_cliente_trava = threading.Lock()
+
+
+def cliente_http_groq():
+    """httpx.Client compartilhado com o hook que mede tokens e limites (card da sidebar)."""
+    global _cliente_http_groq
+    with _cliente_trava:
+        if _cliente_http_groq is None or _cliente_http_groq.is_closed:
+            _cliente_http_groq = medidor_groq.cliente_http()
+        return _cliente_http_groq
+
+
 def criar_modelo() -> Groq:
     """Modelo Groq: o primeiro com cota disponível (GROQ_MODEL_ID + GROQ_MODELOS_RESERVA)."""
     return GroqTolerante(
         id=modelo_disponivel() or modelos_configurados()[0],
         api_key=obter_api_key(),
+        http_client=cliente_http_groq(),
         max_retries=TENTATIVAS_API,  # erros 429 por minuto (SDK do Groq, respeita o retry-after)
         retries=len(modelos_configurados()) + 1,  # troca de modelo + chamadas de ferramenta inválidas
         delay_between_retries=2,
