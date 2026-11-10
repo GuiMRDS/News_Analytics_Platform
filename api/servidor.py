@@ -18,7 +18,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agente import ferramentas_mercado as mercado
-from agente.comum import BASE_DIR, MODELO_ID, OUTPUT_DIR, obter_api_key
+from agente.comum import (
+    BASE_DIR,
+    OUTPUT_DIR,
+    modelo_disponivel,
+    modelos_configurados,
+    obter_api_key,
+    resumo_cota_esgotada,
+    situacao_cota,
+)
 from api import registry
 from api.execucao import GerenciadorDeTarefas, etapas_do_executor
 
@@ -82,7 +90,8 @@ cache = Cache()
 def status() -> dict:
     return {
         "api_key_configurada": bool(obter_api_key()),
-        "modelo": os.getenv("GROQ_MODEL_ID", MODELO_ID),
+        "modelo": modelo_disponivel() or modelos_configurados()[0],
+        "cota": situacao_cota(),
         "busca_backend": os.getenv("BUSCA_BACKEND", "auto"),
         "versao_padrao": registry.VERSAO_PADRAO,
         "tarefas_em_andamento": tarefas.em_andamento(),
@@ -158,6 +167,9 @@ def criar_pergunta(pergunta: Pergunta) -> dict:
         raise HTTPException(400, f"Versão desconhecida: {pergunta.versao}")
     if not obter_api_key():
         raise HTTPException(503, "GROQ_API_KEY não configurada. Crie o arquivo .env (veja .env.example).")
+    if modelo_disponivel() is None:
+        # Todos os modelos sem cota diária: avisa na hora em vez de rodar um pipeline que vai falhar
+        raise HTTPException(429, resumo_cota_esgotada())
     executor = registry.carregar_workflow(pergunta.versao)
     tarefa = tarefas.criar(pergunta.tema.strip(), pergunta.versao, executor)
     return {"id": tarefa.id, "versao": tarefa.versao, "etapas": etapas_do_executor(executor)}
@@ -169,6 +181,17 @@ def estado_pergunta(tarefa_id: str) -> dict:
     if not tarefa:
         raise HTTPException(404, "Pergunta não encontrada.")
     return tarefa.resumo()
+
+
+@app.post("/api/perguntas/{tarefa_id}/cancelar")
+def cancelar_pergunta(tarefa_id: str) -> dict:
+    """Cancela a pesquisa: interrompe os agentes em execução e não avança para as próximas etapas."""
+    tarefa = tarefas.obter(tarefa_id)
+    if not tarefa:
+        raise HTTPException(404, "Pergunta não encontrada.")
+    if not tarefa.cancelar():
+        raise HTTPException(409, "Esta pergunta já terminou ou já foi cancelada.")
+    return {"id": tarefa.id, "cancelada": True}
 
 
 @app.get("/api/perguntas/{tarefa_id}/eventos")

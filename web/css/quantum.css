@@ -256,6 +256,14 @@ svg.lucide { width: 17px; height: 17px; stroke-width: 1.5; flex-shrink: 0; }
 .step.run .label { color: var(--qt-text); }
 .step.run .time { color: var(--qt-cyan); }
 .step.err .node { border-color: var(--qt-down); color: var(--qt-down); box-shadow: var(--qt-glow-down); }
+.step.cancel .node { border-color: var(--qt-warn); color: var(--qt-warn); }
+.step.cancel .label { color: var(--qt-text-4); text-decoration: line-through; }
+.step.cancel .time { color: var(--qt-warn); }
+/* botão de enviar em modo "cancelar" */
+.chat-input .btn.danger { border-color: var(--qt-down); color: var(--qt-down); box-shadow: var(--qt-glow-down); animation: pulse-danger 1.6s infinite; }
+.chat-input .btn.danger:hover { color: #fff; }
+@keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(255, 61, 113, 0.5); } 100% { box-shadow: 0 0 0 8px rgba(255, 61, 113, 0); } }
+.pipeline-card .hud-title .btn.danger { color: var(--qt-down); height: 24px; }
 .step.err .label { color: var(--qt-down); }
 .pipeline-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 8px; border-top: 1px dashed var(--qt-line); }
 .scanbar { position: relative; height: 1px; overflow: hidden; margin-top: 8px; }

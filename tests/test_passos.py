@@ -14,8 +14,10 @@ class ExecutorFalso:
     def __init__(self, resultado):
         self.resultado = resultado
         self.mensagens = []
+        self.run_ids = []
 
-    def run(self, mensagem, stream=False):
+    def run(self, mensagem, stream=False, run_id=None):
+        self.run_ids.append(run_id)
         self.mensagens.append(mensagem)
         return self.resultado
 
@@ -85,7 +87,7 @@ def test_busca_instrui_argumento_query():
         ("Error code: 429 - rate_limit_exceeded", "Aguarde"),
         (
             "429 rate_limit_exceeded on tokens per day (TPD): Limit 200000. Please try again in 10m58.8s.",
-            "libera em 10m58.8s",
+            "libera em ~11 min",
         ),
         ("Error code: 401 - invalid_api_key", "inválida"),
         ("outro erro", "outro erro"),

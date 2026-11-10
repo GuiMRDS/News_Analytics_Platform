@@ -50,7 +50,8 @@ class AgenteFalso:
     def __init__(self, conteudo="Matéria do agente", status="COMPLETED"):
         self.conteudo, self.status = conteudo, status
 
-    def run(self, tema, stream=False):
+    def run(self, tema, stream=False, run_id=None):
+        self.run_id = run_id
         return SimpleNamespace(content=self.conteudo, status=self.status)
 
 
@@ -251,6 +252,21 @@ def test_pergunta_agente_com_status_de_erro(cliente, monkeypatch):
     monkeypatch.setattr(registry, "carregar_workflow", lambda chave: AgenteFalso("Error code: 429 - rate_limit_exceeded", "RunStatus.error"))
     estado = _aguardar(cliente, cliente.post("/api/perguntas", json={"tema": "Tema", "versao": "V1"}).json()["id"])
     assert "Aguarde" in estado["erro"]
+
+
+def test_pergunta_recusada_sem_cota_em_nenhum_modelo(cliente, monkeypatch):
+    from agente import comum
+
+    monkeypatch.setattr(registry, "carregar_workflow", lambda chave: WorkflowFalso())
+    comum.registrar_cota_esgotada("openai/gpt-oss-20b", 600)
+    status = cliente.get("/api/status").json()
+    assert status["modelo"] == "openai/gpt-oss-120b"  # reserva em uso
+    assert [c["disponivel"] for c in status["cota"]] == [False, True]
+    assert cliente.post("/api/perguntas", json={"tema": "Tema válido"}).status_code == 202
+
+    comum.registrar_cota_esgotada("openai/gpt-oss-120b", 600)
+    r = cliente.post("/api/perguntas", json={"tema": "Tema válido"})
+    assert r.status_code == 429 and "todos os modelos" in r.json()["detail"]
 
 
 def test_pergunta_validacoes(cliente, monkeypatch):

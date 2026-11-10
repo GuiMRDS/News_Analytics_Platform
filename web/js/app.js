@@ -106,7 +106,12 @@ $('#collapse').addEventListener('click', () => { const c = $('#side').classList.
 if (armazenamento.ler('qt-side', false)) $('#side').classList.add('collapsed');
 addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); ($('#search').offsetParent ? $('#search') : $('#chat-in')).focus(); }
-  if (e.key === 'Escape') fecharPaineis();
+  if (e.key === 'Escape') {
+    const painelAberto = $('#chat.open, #side.open');
+    if (painelAberto && !estado.executando) fecharPaineis();
+    else if (estado.executando) cancelarPergunta();
+    else fecharPaineis();
+  }
 });
 
 /* ---------------------------------------------------------------------------
@@ -406,40 +411,76 @@ function addMsg(html, tipo) {
 }
 
 let cronometro;
+// Pergunta em andamento: { controle: AbortController do envio, id, fonte: EventSource, encerrar() }
+let atual = null;
+
 function travar(sim) {
   estado.executando = sim;
-  $('#chat-send').disabled = sim; $('#chat-in').disabled = sim;
-  $('#chat-send').innerHTML = sim ? '<span class="spinner"></span>' : '<i data-lucide="corner-down-left"></i>'; icones();
-  $$('#seg-versoes button').forEach((b) => (b.disabled = sim));
+  $('#chat-in').disabled = sim;
+  const b = $('#chat-send');
+  b.disabled = false;
+  b.classList.toggle('primary', !sim); b.classList.toggle('danger', sim);
+  b.title = sim ? 'Cancelar pesquisa (Esc)' : 'Enviar'; b.setAttribute('aria-label', b.title);
+  b.innerHTML = sim ? '<i data-lucide="square"></i>' : '<i data-lucide="corner-down-left"></i>'; icones();
+  $$('#seg-versoes button').forEach((x) => (x.disabled = sim));
   clearInterval(cronometro);
   if (sim) { const t0 = Date.now(); cronometro = setInterval(() => ($('#chat-timer').textContent = `executando · ${Math.round((Date.now() - t0) / 1000)}s`), 1000); }
   else $('#chat-timer').textContent = '';
 }
 
+function avisoCancelado(texto) {
+  addMsg(`<div class="msg err"><div class="who">■</div><div class="body"><div class="alert warn"><i data-lucide="circle-slash"></i><div><b>Cancelado</b>${esc(texto)}</div></div></div></div>`);
+}
+
+async function cancelarPergunta() {
+  if (!atual) return;
+  if (!atual.id) {  // ainda enviando: aborta a requisição
+    atual.controle.abort();
+    return;
+  }
+  const b = $('#chat-send'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>';
+  $$('[data-cancel]').forEach((x) => (x.disabled = true));
+  try { await api(`/api/perguntas/${atual.id}/cancelar`, { method: 'POST' }); }
+  catch (e) { if (!/terminou/.test(e.message)) toast('Não foi possível cancelar: ' + e.message, 'err'); b.disabled = false; }
+  // o evento "cancelado" chega pelo SSE e encerra a pergunta na interface
+}
+
 async function perguntar(tema) {
   tema = (tema || '').trim();
-  if (!tema || estado.executando) { if (estado.executando) toast('Aguarde a pergunta atual terminar'); return; }
+  if (!tema || estado.executando) { if (estado.executando) toast('Aguarde a pergunta atual terminar ou cancele-a'); return; }
   if (tema.length < 3) { toast('Pergunta muito curta', 'err'); return; }
   addMsg(`<div class="msg user"><div class="who">EU</div><div class="body"><div class="meta">você · ${esc(estado.versao)}</div>${esc(tema)}</div></div>`);
+  atual = { controle: new AbortController(), id: null };
   travar(true);
   let tarefa;
-  try { tarefa = await api('/api/perguntas', { method: 'POST', body: JSON.stringify({ tema, versao: estado.versao }) }); }
-  catch (e) { erroNoChat(e.message); travar(false); return; }
+  try { tarefa = await api('/api/perguntas', { method: 'POST', body: JSON.stringify({ tema, versao: estado.versao }), signal: atual.controle.signal }); }
+  catch (e) {
+    if (e.name === 'AbortError') avisoCancelado('Envio cancelado antes de a pesquisa começar.');
+    else erroNoChat(e.message);
+    atual = null; travar(false); return;
+  }
+  atual.id = tarefa.id;
 
-  const card = addMsg(`<div class="hud pipeline-card"><div class="hud-title"><i data-lucide="cpu"></i>Telemetria · ${esc(tarefa.versao)}<span class="end mono" style="font-size:10px" data-elapsed></span></div>
+  const card = addMsg(`<div class="hud pipeline-card"><div class="hud-title"><i data-lucide="cpu"></i>Telemetria · ${esc(tarefa.versao)}<span class="end"><span class="mono" style="font-size:10px" data-elapsed></span><button type="button" class="btn ghost sm danger" data-cancel title="Cancelar pesquisa"><i data-lucide="square"></i><span>Cancelar</span></button></span></div>
     <div data-steps>${tarefa.etapas.map((e) => `<div class="step" data-step="${esc(e.id)}"><span class="node"><i data-lucide="circle"></i></span><span class="label">${esc(e.rotulo)}</span><span class="time">—</span></div>`).join('')}</div>
     <div class="scanbar" data-scan></div></div>`);
   const passo = (id) => $(`[data-step="${CSS.escape(id)}"]`, card);
   const marcar = (id, status, extra) => {
     const s = passo(id); if (!s) return;
-    s.classList.remove('run', 'done', 'err'); s.classList.add(status);
-    $('.node', s).innerHTML = `<i data-lucide="${status === 'run' ? 'loader' : status === 'done' ? 'check' : 'x'}"></i>`;
+    s.classList.remove('run', 'done', 'err', 'cancel'); s.classList.add(status);
+    $('.node', s).innerHTML = `<i data-lucide="${{ run: 'loader', done: 'check', err: 'x', cancel: 'minus' }[status]}"></i>`;
     if (extra != null) $('.time', s).textContent = extra;
     icones();
   };
 
   const fonte = new EventSource(`/api/perguntas/${tarefa.id}/eventos`);
   let finalizado = false;
+  const encerrar = (duracao) => {
+    finalizado = true; fonte.close();
+    $('[data-scan]', card)?.remove(); $('[data-cancel]', card)?.remove();
+    if (duracao != null) $('[data-elapsed]', card).textContent = `${duracao}s`;
+    atual = null; travar(false); carregarMaterias(); atualizarStatus();
+  };
   fonte.onmessage = (msg) => {
     const ev = JSON.parse(msg.data);
     if (ev.tipo === 'etapa') marcar(ev.id, ev.status === 'iniciada' ? 'run' : ev.status === 'concluida' ? 'done' : 'err', ev.status === 'iniciada' ? '…' : ev.duracao_s != null ? ev.duracao_s + 's' : null);
@@ -451,25 +492,33 @@ async function perguntar(tema) {
     } else if (ev.tipo === 'erro') {
       $$('.step.run', card).forEach((s) => marcar(s.dataset.step, 'err'));
       erroNoChat(ev.mensagem);
+    } else if (ev.tipo === 'cancelado') {
+      // as etapas em andamento e as que faltavam ficam marcadas como canceladas
+      $$('.step:not(.done):not(.err)', card).forEach((s) => marcar(s.dataset.step, 'cancel', s.classList.contains('run') ? 'cancelada' : null));
+      avisoCancelado('Pesquisa interrompida. Nenhuma matéria foi salva.');
+      encerrar(null);
     } else if (ev.tipo === 'fim') {
-      finalizado = true; fonte.close();
-      $('[data-scan]', card)?.remove();
-      $('[data-elapsed]', card).textContent = `${ev.duracao_s}s`;
-      travar(false); carregarMaterias(); atualizarStatus();
+      encerrar(ev.duracao_s);
     }
   };
+  atual.fonte = fonte;
   fonte.onerror = () => {
     if (finalizado) return;
-    fonte.close(); travar(false);
+    fonte.close(); atual = null; travar(false);
     erroNoChat('A conexão com o servidor caiu durante a execução. Verifique se a API ainda está rodando.');
   };
 }
+document.addEventListener('click', (e) => { if (e.target.closest('[data-cancel]')) cancelarPergunta(); });
 
 function erroNoChat(mensagem) {
   addMsg(`<div class="msg err"><div class="who">!</div><div class="body"><div class="alert err"><i data-lucide="octagon-x"></i><div><b>Falha na execução</b>${esc(mensagem)}</div></div></div></div>`);
 }
 
-$('#chat-form').addEventListener('submit', (e) => { e.preventDefault(); const v = $('#chat-in').value; $('#chat-in').value = ''; autoAltura(); perguntar(v); });
+$('#chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (estado.executando) { cancelarPergunta(); return; }  // durante a execução, o botão de enviar vira "cancelar"
+  const v = $('#chat-in').value; $('#chat-in').value = ''; autoAltura(); perguntar(v);
+});
 $('#chat-in').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-form').requestSubmit(); } });
 function autoAltura() { const t = $('#chat-in'); t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
 $('#chat-in').addEventListener('input', autoAltura);
@@ -482,6 +531,11 @@ async function atualizarStatus() {
     const s = await api('/api/status');
     $('#sys-key').innerHTML = s.api_key_configurada ? '<span class="up-t">configurada</span>' : '<span class="down-t">ausente</span>';
     $('#sys-model').textContent = s.modelo; $('#sys-model').title = s.modelo;
+    const cota = s.cota || [], esgotados = cota.filter((c) => !c.disponivel);
+    const q = $('#sys-quota');
+    if (!esgotados.length) { q.innerHTML = '<span class="up-t">disponível</span>'; q.title = cota.map((c) => c.modelo).join(', '); }
+    else if (esgotados.length < cota.length) { q.innerHTML = `<span style="color:var(--qt-warn)">reserva em uso</span>`; q.title = esgotados.map((c) => `${c.modelo}: libera em ~${Math.max(1, Math.round(c.libera_em_s / 60))} min`).join('\n'); }
+    else { const min = Math.max(1, Math.round(Math.min(...cota.map((c) => c.libera_em_s)) / 60)); q.innerHTML = `<span class="down-t">esgotada · ~${min} min</span>`; q.title = 'Todos os modelos sem cota diária'; }
     $('#sys-search').textContent = s.busca_backend;
     $('#sys-running').textContent = s.tarefas_em_andamento;
     $('#avatar').classList.toggle('off', !s.api_key_configurada);
@@ -506,6 +560,7 @@ async function iniciar() {
   atualizarStatus();
   carregarMercado(); carregarWatchlist(); carregarGrafico(); carregarMaterias(); simularCompleto();
   setInterval(() => { if (!document.hidden) { carregarMercado(); carregarWatchlist(); } }, 5 * 60 * 1000);
+  setInterval(() => { if (!document.hidden) atualizarStatus(); }, 60 * 1000);
   let tRes; addEventListener('resize', () => { clearTimeout(tRes); tRes = setTimeout(carregarGrafico, 250); });
 }
 iniciar();

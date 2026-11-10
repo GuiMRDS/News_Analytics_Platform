@@ -46,6 +46,18 @@ def mercado_simulado(monkeypatch):
     monkeypatch.setattr(fm, "_buscar_serie_bcb", lambda codigo: dict(SERIES_FALSAS[codigo]))
 
 
+@pytest.fixture(autouse=True)
+def cota_limpa(monkeypatch):
+    """Registro de cotas zerado e modelos previsíveis em cada teste."""
+    from agente import comum
+
+    monkeypatch.delenv("GROQ_MODEL_ID", raising=False)
+    monkeypatch.delenv("GROQ_MODELOS_RESERVA", raising=False)
+    comum._cota_esgotada_ate.clear()
+    yield
+    comum._cota_esgotada_ate.clear()
+
+
 @pytest.fixture
 def funcoes_reais():
     """Acesso às implementações reais (use junto com um _yahoo_json simulado)."""

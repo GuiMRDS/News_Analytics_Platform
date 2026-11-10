@@ -2,9 +2,11 @@
 
 import re
 import unicodedata
+import uuid
+from contextvars import ContextVar
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Protocol
 
 from agno.run.base import RunStatus
 from agno.workflow import Step
@@ -15,6 +17,37 @@ from agente.comum import BASE_DIR, contar_fontes, mensagem_erro_amigavel
 
 class ErroDoAgente(RuntimeError):
     """Falha de um agente/equipe dentro do workflow, com a causa real."""
+
+
+class ExecucaoCancelada(RuntimeError):
+    """A execução foi cancelada pelo usuário."""
+
+
+class ControleDeExecucao(Protocol):
+    """O que quem dispara o workflow (ex.: api.execucao.Tarefa) expõe para o cancelamento."""
+
+    cancelada: bool
+
+    def registrar_run(self, run_id: str) -> None: ...
+
+
+# Controle da execução corrente (definido por quem roda o workflow, na mesma thread)
+CONTROLE_EXECUCAO: ContextVar[ControleDeExecucao | None] = ContextVar("controle_execucao", default=None)
+
+
+def verificar_cancelamento() -> None:
+    controle = CONTROLE_EXECUCAO.get()
+    if controle is not None and controle.cancelada:
+        raise ExecucaoCancelada("execução cancelada pelo usuário")
+
+
+def novo_run_id() -> str:
+    """run_id do Agno registrado no controle corrente, para poder ser cancelado."""
+    run_id = uuid.uuid4().hex
+    controle = CONTROLE_EXECUCAO.get()
+    if controle is not None:
+        controle.registrar_run(run_id)
+    return run_id
 
 
 def _mensagem_do_passo(step_input: StepInput) -> str:
@@ -36,7 +69,10 @@ def passo_agente(nome: str, executor: Any, descricao: str = "", max_retries: int
     """
 
     def executar(step_input: StepInput) -> StepOutput:
-        resultado = executor.run(_mensagem_do_passo(step_input), stream=False)
+        verificar_cancelamento()
+        # run_id registrado: cancelar a tarefa interrompe o agente entre as chamadas ao modelo
+        resultado = executor.run(_mensagem_do_passo(step_input), stream=False, run_id=novo_run_id())
+        verificar_cancelamento()
         conteudo = getattr(resultado, "content", None)
         if resultado is None or getattr(resultado, "status", None) == RunStatus.error:
             raise ErroDoAgente(
@@ -87,6 +123,7 @@ def slug(texto: str, limite: int = 50) -> str:
 
 def exportar_markdown(step_input: StepInput, pasta: Path) -> StepOutput:
     """Salva a matéria final em <pasta>/materia_<tema>_<data>.md."""
+    verificar_cancelamento()  # pesquisa cancelada não gera arquivo
     materia = str(step_input.previous_step_content or "").strip()
     tema = step_input.get_input_as_string() or "materia"
 
